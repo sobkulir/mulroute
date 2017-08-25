@@ -6,9 +6,10 @@
 #define NET_UTILITY_H
 
 #include "Address.h"
+#include "enums.h"
 
 #include <string>
 
-Address get_addr(std::string ip_or_hostname, Address::Family addr_family);
+Address get_addr(const std::string ip_or_hostname, AddressFamily addr_family);
 
 #endif // NET_UTILITY_H

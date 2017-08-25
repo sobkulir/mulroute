@@ -5,13 +5,14 @@
 #include "utility.h"
 #include "Address.h"
 #include "GaiException.h"
+#include "enums.h"
 
 #include <netdb.h>
 #include <sys/socket.h>
 #include <string>
 #include <cstring>
 
-Address get_addr(std::string ip_or_hostname, Address::Family addr_family) {
+Address get_addr(const std::string ip_or_hostname, AddressFamily addr_family) {
     int status;
     struct addrinfo hints, *res = nullptr;
 

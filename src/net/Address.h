@@ -9,15 +9,10 @@
 
 class Address {
 public:
-    enum class Family {
-        Inet = AF_INET,
-        Inet6 = AF_INET6,
-        Unspec = AF_UNSPEC,
-    };
 
     Address(const sockaddr *info, socklen_t length);
 
-    struct sockaddr *get_ptr();
+    struct sockaddr *get_ptr(socklen_t &length);
 
 private:
     sockaddr_storage _info;
