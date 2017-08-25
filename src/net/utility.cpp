@@ -16,7 +16,7 @@ Address get_addr(const std::string ip_or_hostname, AddressFamily addr_family) {
     int status;
     struct addrinfo hints, *res = nullptr;
 
-    memset (&hints, 0, sizeof(hints) );
+    memset(&hints, 0, sizeof(hints) );
     hints.ai_family = static_cast<int>(addr_family);
 
     status = getaddrinfo(ip_or_hostname.c_str(), nullptr, &hints, &res);

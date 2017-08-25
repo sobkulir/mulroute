@@ -7,6 +7,7 @@
 
 #include <system_error>
 #include <sys/socket.h>
+#include <unistd.h>
 
 Socket::Socket(AddressFamily addr_family, SocketType type, Protocol protocol) {
     // Casting is needed because socket() arguments are of type int
@@ -19,4 +20,8 @@ Socket::Socket(AddressFamily addr_family, SocketType type, Protocol protocol) {
     if (_socket_FD == -1) {
         throw std::system_error(errno, std::system_category());
     }
+}
+
+Socket::Socket::~Socket() {
+    close(_socket_FD);
 }

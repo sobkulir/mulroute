@@ -11,6 +11,7 @@ class Socket {
 public:
     Socket(AddressFamily addr_family, SocketType type, Protocol protocol);
 
+    virtual ~Socket();
 private:
     int _socket_FD = -1;
 };
