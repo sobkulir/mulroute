@@ -13,7 +13,8 @@ public:
     Address(const sockaddr *info, socklen_t length);
 
     AddressFamily get_family();
-    struct sockaddr *get_ptr(socklen_t &length);
+    struct sockaddr *get_sockaddr_ptr();
+    size_t get_length();
 
 private:
     sockaddr_storage _info;

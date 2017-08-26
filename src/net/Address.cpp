@@ -24,7 +24,10 @@ AddressFamily Address::get_family() {
     }
 }
 
-struct sockaddr *Address::get_ptr(socklen_t &length) {
-    length = _length;
+struct sockaddr *Address::get_sockaddr_ptr() {
     return (struct sockaddr *) &_info;
+}
+
+size_t Address::get_length() {
+    return _length;
 }
