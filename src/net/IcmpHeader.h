@@ -25,6 +25,7 @@ public:
 
     char *get_packet_ptr(size_t &length);
     char *get_packet_ptr();
+    size_t get_length();
 
     virtual void set_type(Icmp6Type type) { };
     virtual void set_type(Icmp4Type type) { };
@@ -32,7 +33,7 @@ public:
     virtual void set_code(Icmp4Code code) { };
     virtual void set_id(u_int16_t id) = 0;
     virtual void set_seq(u_int16_t seq) = 0;
-    virtual void set_payload(const std::vector<char> &buf, size_t buf_length) = 0;
+    virtual void set_payload(const std::vector<char> &payload_buf, size_t buf_length) = 0;
 
     /*
      * Method prep_to_send should be called before sending the packet
@@ -52,12 +53,13 @@ class Icmp6Header : public virtual IcmpHeader {
 public:
     Icmp6Header();
     Icmp6Header(const std::vector<char> &buf, size_t buf_length);
+    Icmp6Header(u_int16_t id, u_int16_t seq, std::vector<char> &payload_buf, size_t buf_length);
 
     void set_type(Icmp6Type type) override;
     void set_code(Icmp6Code code) override;
     void set_id(u_int16_t id) override;
     void set_seq(u_int16_t seq) override;
-    void set_payload(const std::vector<char> &buf, size_t buf_length) override;
+    void set_payload(const std::vector<char> &payload_buf, size_t buf_length) override;
 
 private:
     inline struct icmp6_hdr *_hdr_ptr() {
@@ -96,12 +98,13 @@ class Icmp4Header : public virtual IcmpHeader {
 public:
     Icmp4Header();
     Icmp4Header(const std::vector<char> &buf, size_t buf_length);
+    Icmp4Header(u_int16_t id, u_int16_t seq, std::vector<char> &payload_buf, size_t buf_length);
 
     void set_type(Icmp4Type type) override;
     void set_code(Icmp4Code code) override;
     void set_id(u_int16_t id) override;
     void set_seq(u_int16_t seq) override;
-    void set_payload(const std::vector<char> &buf, size_t buf_length) override;
+    void set_payload(const std::vector<char> &payload_buf, size_t buf_length) override;
 
     void prep_to_send() override;
 
