@@ -7,6 +7,8 @@
 
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <netinet/ip.h>
+#include <netinet/ip_icmp.h>
 #include <netinet/icmp6.h>
 #include <cstdint>
 
@@ -49,4 +51,22 @@ enum class Icmp6Code : u_int8_t {
     Admin = ICMP6_DST_UNREACH_ADMIN,
     NextHeader = ICMP6_PARAMPROB_NEXTHEADER,
 };
+
+enum class Icmp4Type : u_int8_t {
+    DstUnreach = ICMP_UNREACH,
+    TimeExceeded = ICMP_TIMXCEED,
+    ParamProb = ICMP_PARAMPROB,
+
+    EchoRequest = ICMP_ECHO,
+    EchoReply = ICMP_ECHOREPLY,
+};
+
+enum class Icmp4Code : u_int8_t {
+    Net = ICMP_UNREACH_NET,
+    Host = ICMP_UNREACH_HOST,
+    Port = ICMP_UNREACH_PORT,
+    NetProhib = ICMP_UNREACH_NET_PROHIB,
+    Protocol = ICMP_UNREACH_PROTOCOL,
+};
+
 #endif // NET_ENUM_H
