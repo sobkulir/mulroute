@@ -10,7 +10,7 @@
 #include <unistd.h>
 
 Socket::Socket(AddressFamily addr_family, SocketType type, Protocol protocol) {
-    // Casting is needed because socket() arguments are of type int
+    // socket() arguments are of type int
     _socket_FD = socket(
         static_cast<int>(addr_family),
         static_cast<int>(type),

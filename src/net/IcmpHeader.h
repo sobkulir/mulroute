@@ -9,16 +9,15 @@
 
 #include <netinet/icmp6.h>
 #include <cstdint>
-
 #include <vector>
 
 /* Should be at least 8, since the ICMP header is 8 bytes long */
-constexpr size_t DEF_PACKET_LEN = 16;
+constexpr size_t DEF_ICMP_PACKET_LEN = 16;
+
 
 /*
- * Class IcmpHeader is an interface for making ICMPv4/ICMPv6 packets.
+ * Class IcmpHeader is an interface for working with ICMPv4/ICMPv6 packets.
  */
-
 class IcmpHeader {
 public:
     IcmpHeader() : _family(AddressFamily::Unspec), _length(0) { };
@@ -71,7 +70,6 @@ private:
  * OS X does not have icmphdr struct in <netinet/ip_icmp.h> header file.
  * Therefore icmp4_hdr is basically a copy-paste of this structure.
  */
-
 struct icmp4_hdr
 {
   u_int8_t type;        /* message type */

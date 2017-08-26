@@ -7,6 +7,10 @@
 
 #include <sys/socket.h>
 #include <netinet/in.h>
+/*
+ * <netinet/ip.h> has to be included before <netinet/ip_icmp.h>
+ * because it has definition of n_short type used in ip_icmp.h
+ */
 #include <netinet/ip.h>
 #include <netinet/ip_icmp.h>
 #include <netinet/icmp6.h>

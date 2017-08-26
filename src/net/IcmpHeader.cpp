@@ -48,7 +48,7 @@ void IcmpHeader::_set_payload(const std::vector<char> &buf, size_t buf_length, s
  */
 
 Icmp6Header::Icmp6Header() {
-    _packet = std::vector<char>(DEF_PACKET_LEN, 0);
+    _packet = std::vector<char>(DEF_ICMP_PACKET_LEN, 0);
     _length = sizeof(struct icmp6_hdr);
     _family = AddressFamily::Inet6;
 }
@@ -82,7 +82,7 @@ void Icmp6Header::set_payload(const std::vector<char> &buf, size_t buf_length) {
  */
 
 Icmp4Header::Icmp4Header() {
-    _packet = std::vector<char>(DEF_PACKET_LEN, 0);
+    _packet = std::vector<char>(DEF_ICMP_PACKET_LEN, 0);
     _length = sizeof(struct icmp4_hdr);
     _family = AddressFamily::Inet;
 }
