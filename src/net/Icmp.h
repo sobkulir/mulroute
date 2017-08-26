@@ -12,7 +12,7 @@
 
 #include <vector>
 
-// Should be at least 8, since the ICMP header is 8 bytes long
+/* Should be at least 8, since the ICMP header is 8 bytes long */
 constexpr size_t DEF_PACKET_LEN = 16;
 
 /*
@@ -25,6 +25,7 @@ public:
     Icmp(const std::vector<char> &buf, size_t buf_length, AddressFamily family);
 
     char *get_packet_ptr(size_t &length);
+    char *get_packet_ptr();
 
     virtual void set_type(Icmp6Type type) { };
     virtual void set_type(Icmp4Type type) { };
@@ -33,6 +34,12 @@ public:
     virtual void set_id(u_int16_t id) = 0;
     virtual void set_seq(u_int16_t seq) = 0;
     virtual void set_payload(const std::vector<char> &buf, size_t buf_length) = 0;
+
+    /*
+     * Method prep_to_send should be called before sending the packet
+     * For ICMPv4 it fills the checksum field in the header
+     */
+    virtual void prep_to_send() { };
 
 protected:
     AddressFamily _family;
@@ -61,7 +68,7 @@ private:
 
 
 /*
- * OS X does not have icmphdr struct in "netinet/ip_icmp.h" header file.
+ * OS X does not have icmphdr struct in <netinet/ip_icmp.h> header file.
  * Therefore icmp4_hdr is basically a copy-paste of this structure.
  */
 
@@ -97,6 +104,8 @@ public:
     void set_id(u_int16_t id) override;
     void set_seq(u_int16_t seq) override;
     void set_payload(const std::vector<char> &buf, size_t buf_length) override;
+
+    void prep_to_send() override;
 
 private:
     inline struct icmp4_hdr *_hdr_ptr() {

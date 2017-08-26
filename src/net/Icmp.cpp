@@ -4,11 +4,13 @@
 
 #include "Icmp.h"
 #include "enums.h"
+#include "utility.h"
 
 #include <netinet/in.h>
 #include <netinet/icmp6.h>
 #include <cstring>
 #include <vector>
+#include <cstdint>
 
 /*
  * Icmp
@@ -24,6 +26,10 @@ Icmp::Icmp(const std::vector<char> &buf, size_t buf_length, AddressFamily family
 
 char *Icmp::get_packet_ptr(size_t &length) {
     length = _length;
+    return _packet.data();
+}
+
+char *Icmp::get_packet_ptr() {
     return _packet.data();
 }
 
@@ -103,4 +109,9 @@ void Icmp4::set_seq(u_int16_t seq) {
 
 void Icmp4::set_payload(const std::vector<char> &buf, size_t buf_length) {
     Icmp::_set_payload(buf, buf_length, sizeof(struct icmp4_hdr));
+}
+
+void Icmp4::prep_to_send() {
+    _hdr_ptr()->checksum = htons(
+        compute_checksum((u_int16_t *) Icmp::get_packet_ptr(), _length));
 }
