@@ -34,6 +34,8 @@ Address get_addr(const std::string ip_or_hostname, AddressFamily addr_family) {
 }
 
 /*
+ * Function returns checksum in network byte order
+ *
  * The Internet checksum is the one's complement of the one's complement sum of
  * the 16-bit values to be checksummed. If the data length is an odd number,
  * then 1 byte of 0 is logically appended to the end of the data, just for the
