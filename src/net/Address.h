@@ -12,12 +12,13 @@
 
 class Address {
 public:
+    Address();
     Address(const sockaddr *info, socklen_t length);
 
-    AddressFamily get_family();
-    struct sockaddr *get_sockaddr_ptr();
-    socklen_t get_length();
-    std::string get_hostname();
+    AddressFamily get_family() const;
+    struct sockaddr *get_sockaddr_ptr() const;
+    socklen_t get_length() const;
+    std::string get_hostname() const;
 
     std::string retrieve_hostname();
 

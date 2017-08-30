@@ -33,7 +33,7 @@ enum class SocketType : int {
 
 enum class Protocol : int {
     ICMP = IPPROTO_ICMP,
-    ICMPV6 = IPPROTO_ICMPV6,
+    ICMPv6 = IPPROTO_ICMPV6,
     TCP = IPPROTO_TCP,
     UDP = IPPROTO_UDP,
     SCTP = IPPROTO_SCTP,

@@ -127,6 +127,9 @@ void Icmp4Header::set_payload(const std::vector<char> &payload_buf, size_t buf_l
 }
 
 void Icmp4Header::prep_to_send() {
+    /* Checksum field must be set to zero for proper checksum computation */
+    _hdr_ptr()->checksum = 0;
+
     /* compute_checksum returns checksum in network byte order */
     _hdr_ptr()->checksum =
         compute_checksum((u_int16_t *) IcmpHeader::get_packet_ptr(), _length);

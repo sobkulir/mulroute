@@ -11,7 +11,8 @@
 #include <string>
 #include <cstdint>
 
-Address get_addr(const std::string ip_or_hostname, AddressFamily addr_family);
+Address str_to_address(const std::string ip_or_hostname, AddressFamily addr_family);
 uint16_t compute_checksum(uint16_t * addr, int len);
+AddressFamily ip_version(const std::string src);
 
 #endif // NET_UTILITY_H
