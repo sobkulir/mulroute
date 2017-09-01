@@ -20,6 +20,8 @@ public:
     socklen_t get_length() const;
     std::string get_hostname() const;
 
+    void set_length(int length);
+
     std::string retrieve_hostname();
 
 private:
