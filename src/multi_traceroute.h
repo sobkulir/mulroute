@@ -12,6 +12,7 @@
 struct TraceOptions {
     AddressFamily af_if_unknown;
     int probes;
+    int wait_time;
     int max_ttl;
 };
 

@@ -21,11 +21,14 @@ constexpr size_t DEF_ICMP_PACKET_LEN = 16;
 class IcmpHeader {
 public:
     IcmpHeader() : _family(AddressFamily::Unspec), _length(0) { };
-    IcmpHeader(const std::vector<char> &buf, size_t buf_length, AddressFamily family);
+    IcmpHeader(char *buf, size_t buf_length, AddressFamily family);
 
     char *get_packet_ptr(size_t &length);
     char *get_packet_ptr();
     size_t get_length();
+    virtual IcmpRespStatus get_resp_status() = 0;
+    virtual u_int16_t get_id() = 0;
+    virtual u_int16_t get_seq() = 0;
 
     virtual void set_type(Icmp6Type type) { };
     virtual void set_type(Icmp4Type type) { };
@@ -52,8 +55,12 @@ protected:
 class Icmp6Header : public virtual IcmpHeader {
 public:
     Icmp6Header();
-    Icmp6Header(const std::vector<char> &buf, size_t buf_length);
+    Icmp6Header(char *buf, size_t buf_length);
     Icmp6Header(u_int16_t id, u_int16_t seq, std::vector<char> &payload_buf, size_t buf_length);
+
+    IcmpRespStatus get_resp_status() override;
+    u_int16_t get_id() override;
+    u_int16_t get_seq() override;
 
     void set_type(Icmp6Type type) override;
     void set_code(Icmp6Code code) override;
@@ -97,8 +104,12 @@ struct icmp4_hdr
 class Icmp4Header : public virtual IcmpHeader {
 public:
     Icmp4Header();
-    Icmp4Header(const std::vector<char> &buf, size_t buf_length);
+    Icmp4Header(char *buf, size_t buf_length);
     Icmp4Header(u_int16_t id, u_int16_t seq, std::vector<char> &payload_buf, size_t buf_length);
+
+    IcmpRespStatus get_resp_status() override;
+    u_int16_t get_id() override;
+    u_int16_t get_seq() override;
 
     void set_type(Icmp4Type type) override;
     void set_code(Icmp4Code code) override;

@@ -70,7 +70,20 @@ enum class Icmp4Code : u_int8_t {
     Host = ICMP_UNREACH_HOST,
     Port = ICMP_UNREACH_PORT,
     NetProhib = ICMP_UNREACH_NET_PROHIB,
+    HostProhib = ICMP_UNREACH_HOST_PROHIB,
+    FilterProhib = ICMP_UNREACH_FILTER_PROHIB,
     Protocol = ICMP_UNREACH_PROTOCOL,
+};
+
+enum class IcmpRespStatus {
+    Unknown,
+    EchoReply,
+    NetworkUnreachable,
+    HostUnreachable,
+    ProtocolUnreachable,
+    PortUnreachable,
+    AdminProhibited,
+    TimeExceeded,
 };
 
 #endif // NET_ENUM_H

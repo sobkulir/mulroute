@@ -9,8 +9,9 @@
 #include <cstring>
 #include <string>
 #include <netdb.h>
+#include <sys/socket.h>
 
-Address::Address() : _length(0) {
+Address::Address() : _length(sizeof(struct sockaddr_storage)) {
 
 }
 
@@ -41,6 +42,10 @@ socklen_t Address::get_length() const {
 
 std::string Address::get_hostname() const {
     return _hostname;
+}
+
+void Address::set_length(int length) {
+    _length = length;
 }
 
 std::string Address::retrieve_hostname() {

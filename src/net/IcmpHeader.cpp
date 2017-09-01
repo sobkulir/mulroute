@@ -16,9 +16,9 @@
  * IcmpHeader
  */
 
-IcmpHeader::IcmpHeader(const std::vector<char> &buf, size_t buf_length, AddressFamily family) {
+IcmpHeader::IcmpHeader(char *buf, size_t buf_length, AddressFamily family) {
     _packet = std::vector<char>(buf_length, 0);
-    memcpy(_packet.data(), buf.data(), buf_length);
+    memcpy(_packet.data(), buf, buf_length);
     _length = buf_length;
     _family = family;
 }
@@ -55,7 +55,7 @@ Icmp6Header::Icmp6Header() {
     _family = AddressFamily::Inet6;
 }
 
-Icmp6Header::Icmp6Header(const std::vector<char> &buf, size_t buf_length) :
+Icmp6Header::Icmp6Header(char *buf, size_t buf_length) :
     IcmpHeader(buf, buf_length, AddressFamily::Inet6) { }
 
 Icmp6Header::Icmp6Header(u_int16_t id, u_int16_t seq, std::vector<char> &payload_buf, size_t buf_length) : Icmp6Header() {
@@ -63,6 +63,37 @@ Icmp6Header::Icmp6Header(u_int16_t id, u_int16_t seq, std::vector<char> &payload
     set_id(id);
     set_seq(seq);
     set_payload(payload_buf, buf_length);
+}
+
+IcmpRespStatus Icmp6Header::get_resp_status() {
+    switch (Icmp6Type(_hdr_ptr()->icmp6_type)) {
+        case Icmp6Type::DstUnreach:
+            switch (Icmp6Code(_hdr_ptr()->icmp6_code)) {
+                case Icmp6Code::NoRoute: return IcmpRespStatus::NetworkUnreachable;
+                case Icmp6Code::Addr: return IcmpRespStatus::HostUnreachable;
+                case Icmp6Code::NoPort: return IcmpRespStatus::PortUnreachable;
+
+                case Icmp6Code::Admin: return IcmpRespStatus::AdminProhibited;
+            }
+        case Icmp6Type::ParamProb:
+            switch (Icmp6Code(_hdr_ptr()->icmp6_code)) {
+                case Icmp6Code::NextHeader: return IcmpRespStatus::ProtocolUnreachable;
+                default: return IcmpRespStatus::Unknown;
+            }
+        case Icmp6Type::TimeExceeded: return IcmpRespStatus::TimeExceeded;
+        case Icmp6Type::EchoReply: return IcmpRespStatus::EchoReply;
+        default: return IcmpRespStatus::Unknown;
+    }
+
+    return IcmpRespStatus::Unknown;
+}
+
+u_int16_t Icmp6Header::get_id() {
+    return ntohs(_hdr_ptr()->icmp6_id);
+}
+
+u_int16_t Icmp6Header::get_seq() {
+    return ntohs(_hdr_ptr()->icmp6_seq);
 }
 
 void Icmp6Header::set_type(Icmp6Type type) {
@@ -96,7 +127,7 @@ Icmp4Header::Icmp4Header() {
     _family = AddressFamily::Inet;
 }
 
-Icmp4Header::Icmp4Header(const std::vector<char> &buf, size_t buf_length) :
+Icmp4Header::Icmp4Header(char *buf, size_t buf_length) :
     IcmpHeader(buf, buf_length, AddressFamily::Inet6) { }
 
 Icmp4Header::Icmp4Header(u_int16_t id, u_int16_t seq, std::vector<char> &payload_buf, size_t buf_length) : Icmp4Header() {
@@ -104,6 +135,36 @@ Icmp4Header::Icmp4Header(u_int16_t id, u_int16_t seq, std::vector<char> &payload
     set_id(id);
     set_seq(seq);
     set_payload(payload_buf, buf_length);
+}
+
+IcmpRespStatus Icmp4Header::get_resp_status() {
+    switch (Icmp4Type(_hdr_ptr()->type)) {
+        case Icmp4Type::DstUnreach:
+            switch (Icmp4Code(_hdr_ptr()->code)) {
+                case Icmp4Code::Net: return IcmpRespStatus::NetworkUnreachable;
+                case Icmp4Code::Host: return IcmpRespStatus::HostUnreachable;
+                case Icmp4Code::Protocol: return IcmpRespStatus::ProtocolUnreachable;
+                case Icmp4Code::Port: return IcmpRespStatus::PortUnreachable;
+
+                case Icmp4Code::NetProhib:
+                case Icmp4Code::HostProhib:
+                case Icmp4Code::FilterProhib: return IcmpRespStatus::AdminProhibited;
+                default:  return IcmpRespStatus::Unknown;
+            }
+        case Icmp4Type::TimeExceeded: return IcmpRespStatus::TimeExceeded;
+        case Icmp4Type::EchoReply: return IcmpRespStatus::EchoReply;
+        default: return IcmpRespStatus::Unknown;
+    }
+
+    return IcmpRespStatus::Unknown;
+}
+
+u_int16_t Icmp4Header::get_id() {
+    return ntohs(_hdr_ptr()->un.echo.id);
+}
+
+u_int16_t Icmp4Header::get_seq() {
+    return ntohs(_hdr_ptr()->un.echo.sequence);
 }
 
 void Icmp4Header::set_type(Icmp4Type type) {
