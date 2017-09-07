@@ -19,8 +19,9 @@ int main() {
     TraceOptions options = {
         .af_if_unknown = AddressFamily::Inet,
         .probes = 1,
-        .max_ttl = 10,
-        .wait_time = 50,
+        .max_ttl = 30,
+        .break_len = 50,
+        .timeout_len = 1000,
     };
 
     multi_traceroute(to_trace, options);

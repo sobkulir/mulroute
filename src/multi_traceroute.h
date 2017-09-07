@@ -12,8 +12,9 @@
 struct TraceOptions {
     AddressFamily af_if_unknown;
     int probes;
-    int wait_time;
+    int break_len;
     int max_ttl;
+    int timeout_len;
 };
 
 class Probe {

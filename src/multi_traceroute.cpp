@@ -8,7 +8,6 @@
 #include "net/utility.h"
 #include "net/Socket.h"
 #include "net/IcmpHeader.h"
-#include "net/IpHeader.h"
 
 #include <netinet/ip.h>
 #include <vector>
@@ -28,7 +27,7 @@ constexpr int TIME_FOR_RECV = 1;
 constexpr int RECV_BUF_SIZE = 1500;
 constexpr int MIN_IP4_HDR_LEN = 20;
 constexpr int MIN_IP6_HDR_LEN = 40;
-constexpr int MIN_ICMP_HDR_LEN = 8;
+constexpr int ICMP_HDR_LEN = 8;
 
 typedef std::chrono::steady_clock::time_point time_point;
 using std::vector;
@@ -50,6 +49,7 @@ class ProbeInfo {
 public:
     ProbeInfo() { };
     Address offender;
+    IcmpRespStatus icmp_status;
     time_point send_time, recv_time;
     bool did_arrive = false;
 };
@@ -87,7 +87,7 @@ inline int get_ip_hdr_len(AddressFamily af, char *ip_hdr) {
         struct ip *ip4_p = (struct ip *) ip_hdr;
         return ip4_p->ip_hl << 2;
     } else {
-        // IPv6 code here
+        return MIN_IP6_HDR_LEN;
     }
 }
 
@@ -100,14 +100,14 @@ inline int id_to_dest(int id, int id_offset) {
 }
 
 inline int probe_to_seq(int ttl, int probes, int p, int seq_offset) {
-    return seq_offset + ttl * probes + p;
+    return seq_offset + (ttl - 1) * probes + p;
 }
 
 inline int seq_to_ttl(int seq, int probes, int seq_offset) {
-    return (seq - seq_offset) / probes;
+    return (seq - seq_offset) / probes + 1;
 }
 
-inline int seq_to_p(int seq, int probes, int seq_offset) {
+inline int seq_to_probe(int seq, int probes, int seq_offset) {
     return (seq - seq_offset) % probes;
 }
 
@@ -122,7 +122,7 @@ inline int min_ip_hdr_len(AddressFamily af) {
 void send_probes(AddressFamily af,
             const vector<DestInfo> &dest,
             const vector<int> &ttl_done,
-            vector<vector<vector<ProbeInfo>>> &probe_ip4_info,
+            vector<vector<vector<ProbeInfo>>> &probes_info,
             int id_offset,
             int seq_offset,
             TraceOptions options)
@@ -154,36 +154,48 @@ void send_probes(AddressFamily af,
                 icmp_hdr->set_id(dest_to_id(i, id_offset));
                 icmp_hdr->prep_to_send();
 
-                probe_ip4_info[i][ttl - 1][p].send_time = std::chrono::steady_clock::now();
+                probes_info[i][ttl - 1][p].send_time = std::chrono::steady_clock::now();
 
                 sock.send(icmp_hdr->get_packet_ptr(), icmp_hdr->get_length(), dest[i].address);
-                std::this_thread::sleep_for(std::chrono::milliseconds(options.wait_time));
+                std::this_thread::sleep_for(std::chrono::milliseconds(options.break_len));
             }
         }
     }
-
 }
 
 void recv_probes(AddressFamily af,
                  vector<int> &ttl_done,
-                 vector<vector<vector<ProbeInfo>>> &probe_info,
+                 bool &all_sent,
+                 vector<vector<vector<ProbeInfo>>> &probes_info,
                  int id_offset,
                  int seq_offset,
                  TraceOptions options)
 {
     Socket sock = Socket(af, SocketType::Datagram, (af == AddressFamily::Inet) ? Protocol::ICMP : Protocol::ICMPv6);
-    bool recv_done = false;
+    bool recv_done = false, timeout_started = false;
+    time_point all_sent_time;
     Address from;
     char recv_buf[RECV_BUF_SIZE];
 
-    while (!recv_done) {
-        // if (send_done)
-        //     ...
+    while (true) {
+        if (all_sent) {
+            if (!timeout_started) {
+                all_sent_time = std::chrono::steady_clock::now();
+                timeout_started = true;
+            } else {
+                time_point now = std::chrono::steady_clock::now();
+                if (std::chrono::duration_cast<std::chrono::milliseconds>(now - all_sent_time).count() > options.timeout_len) {
+                    break;
+                }
+            }
+        }
 
         // Waiting timed out, no packet to read
         if (!sock.wait_for_recv(TIME_FOR_RECV)) {
             continue;
         }
+
+        auto recv_time = std::chrono::steady_clock::now();
 
         int n_bytes = sock.recv(recv_buf, RECV_BUF_SIZE, from);
         for (int i = 0; i < n_bytes; ++i) {
@@ -191,53 +203,88 @@ void recv_probes(AddressFamily af,
         }
         std::cout << std::endl;
 
-        // Is enough bytes received for EchoReply
-        if (n_bytes < min_ip_hdr_len(af) + MIN_ICMP_HDR_LEN) {
-            continue;
-        }
-        int ip_hdr_len = get_ip_hdr_len(af, recv_buf);
-
-        char *icmp_resp_p = recv_buf + ip_hdr_len;
         std::shared_ptr<IcmpHeader> icmp_hdr;
+        int ip_hdr_len1, ip_hdr_len2;
 
+        // IPv4 packets come with IP header, IPv6 packets don't
         if (af == AddressFamily::Inet) {
-            icmp_hdr = std::make_shared<Icmp4Header>(icmp_resp_p, n_bytes - ip_hdr_len);
+
+            // Is enough bytes received for EchoReply
+            if (n_bytes < min_ip_hdr_len(af) + ICMP_HDR_LEN) {
+                continue;
+            }
+
+            ip_hdr_len1 = get_ip_hdr_len(AddressFamily::Inet, recv_buf);
+            icmp_hdr = std::make_shared<Icmp4Header>(recv_buf + ip_hdr_len1, n_bytes - ip_hdr_len1);
         } else {
-            icmp_hdr = std::make_shared<Icmp6Header>(icmp_resp_p, n_bytes - ip_hdr_len);
+
+            if (n_bytes < ICMP_HDR_LEN) {
+                continue;
+            }
+
+            // No IPv6 header to process in case of IPv6
+            ip_hdr_len1 = 0;
+            icmp_hdr = std::make_shared<Icmp6Header>(recv_buf, n_bytes - ip_hdr_len1);
         }
 
-        switch (icmp_hdr->get_resp_status()) {
+        IcmpRespStatus icmp_status = icmp_hdr->get_resp_status();
+
+        switch (icmp_status) {
             case IcmpRespStatus::Unknown:
                 continue;
             case IcmpRespStatus::EchoReply: {
-                int dest_ind = id_to_dest(icmp_hdr->get_id(), id_offset);
-
-                if (ttl_done[dest_ind] == DEF_TTL_DONE) {
-                    ttl_done[dest_ind] = seq_to_ttl(icmp_hdr->get_seq(), options.probes, seq_offset);
-                }
                 break;
             }
-            default:
+            default: {
                 // Is enough bytes received for error
-                if (n_bytes < 2*min_ip_hdr_len(af) + MIN_ICMP_HDR_LEN + 8) {
+                if (n_bytes < ip_hdr_len1 + ICMP_HDR_LEN + min_ip_hdr_len(af) + 8) {
                     continue;
                 }
+
+                ip_hdr_len2 = get_ip_hdr_len(af, recv_buf + ip_hdr_len1 + ICMP_HDR_LEN);
+
+                if (af == AddressFamily::Inet) {
+                    icmp_hdr = std::make_shared<Icmp4Header>(
+                        recv_buf + ip_hdr_len1 + ICMP_HDR_LEN + ip_hdr_len2,
+                        n_bytes - ip_hdr_len1 - ICMP_HDR_LEN - ip_hdr_len2);
+                } else {
+                    icmp_hdr = std::make_shared<Icmp6Header>(
+                        recv_buf + ICMP_HDR_LEN + ip_hdr_len2,
+                        n_bytes - ICMP_HDR_LEN - ip_hdr_len2);
+                }
+            }
         }
 
+        int dest_ind = id_to_dest(icmp_hdr->get_id(), id_offset);
+        int ttl = seq_to_ttl(icmp_hdr->get_seq(), options.probes, seq_offset);
+        int probe_ind = seq_to_probe(icmp_hdr->get_seq(), options.probes, seq_offset);
+
+        if (dest_ind < 0 || dest_ind >= ttl_done.size()
+            || ttl < 1 || ttl > options.max_ttl
+            || probe_ind < 0 || probe_ind > options.probes) {
+            continue;
+        }
+
+        if (icmp_status == IcmpRespStatus::EchoReply) {
+            // Received probe is useless, we reached destination with smaller ttl
+            if (ttl_done[dest_ind] < ttl) {
+                continue;
+            } else {
+                ttl_done[dest_ind] = ttl;
+            }
+        }
+
+        ProbeInfo &probe_ref = probes_info[dest_ind][ttl - 1][probe_ind];
+        probe_ref.offender = from;
+        probe_ref.did_arrive = true;
+        probe_ref.icmp_status = icmp_status;
+        probe_ref.recv_time = recv_time;
+
+        std::cout << ttl << std::endl;
     }
 
 }
 
-void test(AddressFamily af,
-          vector<int> &ttl_done,
-          vector<vector<vector<ProbeInfo>>> &probe_info
-     //     int id_offset,
-     //     int seq_offset,
-     //     TraceOptions options
-    )
-{
-    return;
-}
 
 vector<vector<Probe>> multi_traceroute(vector<std::string> dest_str_vec, TraceOptions options) {
     vector<DestInfo> dest_ip4, dest_ip6, dest_error;
@@ -257,17 +304,22 @@ vector<vector<Probe>> multi_traceroute(vector<std::string> dest_str_vec, TraceOp
         icmp6_seq_offset = icmp6_dist(e1);
 
     vector<vector<vector<ProbeInfo>>> probe_info_ip4;
+
+    bool all_sent = false;
     probe_info_ip4.assign(dest_ip4.size(), vector<vector<ProbeInfo>>(options.max_ttl, vector<ProbeInfo>(options.probes, ProbeInfo())));
 
     std::thread t1(recv_probes,
                    AddressFamily::Inet,
                    std::ref(ttl_done_ip4),
+                   std::ref(all_sent),
                    std::ref(probe_info_ip4),
                    icmp4_id_offset,
                    icmp4_seq_offset,
                    options);
 
     send_probes(AddressFamily::Inet, dest_ip4, ttl_done_ip4, probe_info_ip4, icmp4_id_offset, icmp4_seq_offset, options);
+    // Pozor, ak send_probes crashne, tak toto treba nastavit aj tak, aby skoncil prijem!
+    all_sent = true;
 
     t1.join();
 
