@@ -18,6 +18,8 @@
 #include <random>
 #include <chrono>
 #include <thread>
+#include <exception>
+#include <cstdlib>
 
 #include <cstdio>
 
@@ -265,7 +267,7 @@ void recv_probes(AddressFamily af,
             continue;
         }
 
-        if (icmp_status == IcmpRespStatus::EchoReply) {
+        if (icmp_status != IcmpRespStatus::TimeExceeded) {
             // Received probe is useless, we reached destination with smaller ttl
             if (ttl_done[dest_ind] < ttl) {
                 continue;
@@ -279,18 +281,49 @@ void recv_probes(AddressFamily af,
         probe_ref.did_arrive = true;
         probe_ref.icmp_status = icmp_status;
         probe_ref.recv_time = recv_time;
-
-        std::cout << ttl << std::endl;
     }
 
 }
 
+void trace(AddressFamily af,
+           const vector<DestInfo> &dest,
+           vector<int> &ttl_done,
+           vector<vector<vector<ProbeInfo>>> &probes_info,
+           int id_offset,
+           int seq_offset,
+           TraceOptions options)
+{
+    bool all_sent = false;
+    probes_info.assign(dest.size(), vector<vector<ProbeInfo>>(options.max_ttl, vector<ProbeInfo>(options.probes, ProbeInfo())));
+
+    std::thread t1(recv_probes,
+                   af,
+                   std::ref(ttl_done),
+                   std::ref(all_sent),
+                   std::ref(probes_info),
+                   id_offset,
+                   seq_offset,
+                   options);
+
+    try {
+        send_probes(af, dest, ttl_done, probes_info, id_offset, seq_offset, options);
+    } catch (const std::exception &e) {
+        std::cerr << "Caught exception: " << e.what() << std::endl;
+        all_sent = true;
+        t1.join();
+        exit(EXIT_FAILURE);
+    }
+
+    all_sent = true;
+    t1.join();
+}
 
 vector<vector<Probe>> multi_traceroute(vector<std::string> dest_str_vec, TraceOptions options) {
-    vector<DestInfo> dest_ip4, dest_ip6, dest_error;
+    vector<DestInfo> dest, dest_ip4, dest_ip6, dest_error;
     std::tie(dest_ip4, dest_ip6, dest_error) = resolve_addresses(dest_str_vec, options.af_if_unknown);
 
-    vector<int> ttl_done_ip4(dest_ip4.size(), DEF_TTL_DONE),
+    vector<int> ttl_done,
+                ttl_done_ip4(dest_ip4.size(), DEF_TTL_DONE),
                 ttl_done_ip6(dest_ip6.size(), DEF_TTL_DONE);
 
     std::random_device r;
@@ -303,30 +336,40 @@ vector<vector<Probe>> multi_traceroute(vector<std::string> dest_str_vec, TraceOp
         icmp6_id_offset = icmp6_dist(e1),
         icmp6_seq_offset = icmp6_dist(e1);
 
-    vector<vector<vector<ProbeInfo>>> probe_info_ip4;
+    vector<vector<vector<ProbeInfo>>> probes_info, probes_info_ip4, probes_info_ip6;
 
-    bool all_sent = false;
-    probe_info_ip4.assign(dest_ip4.size(), vector<vector<ProbeInfo>>(options.max_ttl, vector<ProbeInfo>(options.probes, ProbeInfo())));
+    if (dest_ip4.size() > 0) {
+        trace(AddressFamily::Inet, dest_ip4, ttl_done_ip4, probes_info_ip4, icmp4_id_offset, icmp4_seq_offset, options);
+    }
+    if (dest_ip6.size() > 0) {
+        trace(AddressFamily::Inet6, dest_ip6, ttl_done_ip6, probes_info_ip6, icmp6_id_offset, icmp6_seq_offset, options);
+    }
 
-    std::thread t1(recv_probes,
-                   AddressFamily::Inet,
-                   std::ref(ttl_done_ip4),
-                   std::ref(all_sent),
-                   std::ref(probe_info_ip4),
-                   icmp4_id_offset,
-                   icmp4_seq_offset,
-                   options);
+    // Merge results
+    probes_info = probes_info_ip4;
+    probes_info.insert(probes_info.end(), probes_info_ip6.begin(), probes_info_ip6.end());
 
-    send_probes(AddressFamily::Inet, dest_ip4, ttl_done_ip4, probe_info_ip4, icmp4_id_offset, icmp4_seq_offset, options);
-    // Pozor, ak send_probes crashne, tak toto treba nastavit aj tak, aby skoncil prijem!
-    all_sent = true;
+    ttl_done = ttl_done_ip4;
+    ttl_done.insert(ttl_done.end(), ttl_done_ip6.begin(), ttl_done_ip6.end());
 
-    t1.join();
+    dest = dest_ip4;
+    dest.insert(dest.end(), dest_ip6.begin(), dest_ip6.end());
 
-    // kill receiving thread
-
-    // the same for IPv6
-
+    for (int i = 0; i < dest.size(); ++i) {
+        std::cout << dest[i].dest_str << std::endl;
+        if (!dest[i].address_valid) {
+            std::cout << "\t" << "Errored" << std::endl;
+            continue;
+        }
+        for (int ttl = 0; ttl < std::min(ttl_done[i], options.max_ttl); ++ttl) {
+            std::cout << "\tTTL: " << ttl+1 << std::endl;
+            for (int p = 0; p < options.probes; ++p) {
+                std::cout << "\t\tProbe: " << p << std::endl;
+                ProbeInfo &probe = probes_info[i][ttl][p];
+                std::cout << "\t\t\t" << probe.did_arrive << std::endl;
+            }
+        }
+    }
     // compute RTTs for probes
     // resolve hostnames
 
