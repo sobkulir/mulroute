@@ -9,11 +9,12 @@
 
 #include <netdb.h>
 #include <sys/socket.h>
+#include <arpa/inet.h>
 #include <string>
 #include <cstring>
 #include <cstdint>
 
-Address get_addr(const std::string ip_or_hostname, AddressFamily addr_family) {
+Address str_to_address(const std::string ip_or_hostname, AddressFamily addr_family) {
     int status;
     struct addrinfo hints, *res = nullptr;
 
@@ -71,4 +72,14 @@ uint16_t compute_checksum(uint16_t * addr, int len) {
     sum += (sum >> 16);     /* add carry */
     answer = ~sum;     /* truncate to 16 bits */
     return (answer);
+}
+
+AddressFamily ip_version(const std::string src) {
+    char buf[16];
+    if (inet_pton(AF_INET, src.data(), buf)) {
+        return AddressFamily::Inet;
+    } else if (inet_pton(AF_INET6, src.data(), buf)) {
+        return AddressFamily::Inet6;
+    }
+    return AddressFamily::Unspec;
 }

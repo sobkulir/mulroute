@@ -9,12 +9,17 @@
 #include <cstring>
 #include <string>
 #include <netdb.h>
+#include <sys/socket.h>
+
+Address::Address() : _length(sizeof(struct sockaddr_storage)) {
+
+}
 
 Address::Address(const sockaddr *info, socklen_t length) : _length(length) {
     memcpy(&(this->_info), info, length);
 }
 
-AddressFamily Address::get_family() {
+AddressFamily Address::get_family() const {
     switch (_info.ss_family) {
         case static_cast<int>(AddressFamily::Inet):
             return AddressFamily::Inet;
@@ -27,16 +32,20 @@ AddressFamily Address::get_family() {
     }
 }
 
-struct sockaddr *Address::get_sockaddr_ptr() {
+struct sockaddr *Address::get_sockaddr_ptr() const {
     return (struct sockaddr *) &_info;
 }
 
-socklen_t Address::get_length() {
+socklen_t Address::get_length() const {
     return _length;
 }
 
-std::string Address::get_hostname() {
+std::string Address::get_hostname() const {
     return _hostname;
+}
+
+void Address::set_length(int length) {
+    _length = length;
 }
 
 std::string Address::retrieve_hostname() {
