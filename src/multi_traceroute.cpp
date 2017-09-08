@@ -60,7 +60,7 @@ std::tuple<vector<DestInfo>, vector<DestInfo>, vector<DestInfo>>
 resolve_addresses(const vector<std::string> &dest_str_vec, AddressFamily af_if_unknown) {
     vector<DestInfo> dest_ip4, dest_ip6, dest_error;
 
-    for (int i = 0; i < dest_str_vec.size(); ++i) {
+    for (size_t i = 0; i < dest_str_vec.size(); ++i) {
         AddressFamily af = ip_version(dest_str_vec[i]);
         if (af == AddressFamily::Unspec) {
             af = af_if_unknown;
@@ -129,7 +129,7 @@ void send_probes(AddressFamily af,
             int seq_offset,
             TraceOptions options)
 {
-    Socket sock = Socket(af, SocketType::Datagram, (af == AddressFamily::Inet) ? Protocol::ICMP : Protocol::ICMPv6);
+    Socket sock = Socket(af, SocketType::Raw, (af == AddressFamily::Inet) ? Protocol::ICMP : Protocol::ICMPv6);
 
     // Initialize ICMP echo request packet
     vector<char> payload = {'a', 'b', 'r', 'a', 'h', 'a', 'm'};
@@ -147,7 +147,7 @@ void send_probes(AddressFamily af,
         for (int p = 0; p < options.probes; ++p) {
             icmp_hdr->set_seq(probe_to_seq(ttl, options.probes, p, seq_offset));
 
-            for (int i = 0; i < dest.size(); ++i) {
+            for (size_t i = 0; i < dest.size(); ++i) {
                 // Destination is already reached
                 if (ttl_done[i] < ttl) {
                     continue;
@@ -173,8 +173,8 @@ void recv_probes(AddressFamily af,
                  int seq_offset,
                  TraceOptions options)
 {
-    Socket sock = Socket(af, SocketType::Datagram, (af == AddressFamily::Inet) ? Protocol::ICMP : Protocol::ICMPv6);
-    bool recv_done = false, timeout_started = false;
+    Socket sock = Socket(af, SocketType::Raw, (af == AddressFamily::Inet) ? Protocol::ICMP : Protocol::ICMPv6);
+    bool timeout_started = false;
     time_point all_sent_time;
     Address from;
     char recv_buf[RECV_BUF_SIZE];
@@ -261,7 +261,7 @@ void recv_probes(AddressFamily af,
         int ttl = seq_to_ttl(icmp_hdr->get_seq(), options.probes, seq_offset);
         int probe_ind = seq_to_probe(icmp_hdr->get_seq(), options.probes, seq_offset);
 
-        if (dest_ind < 0 || dest_ind >= ttl_done.size()
+        if (dest_ind < 0 || dest_ind >= static_cast<int>(ttl_done.size())
             || ttl < 1 || ttl > options.max_ttl
             || probe_ind < 0 || probe_ind > options.probes) {
             continue;
@@ -355,7 +355,7 @@ vector<vector<Probe>> multi_traceroute(vector<std::string> dest_str_vec, TraceOp
     dest = dest_ip4;
     dest.insert(dest.end(), dest_ip6.begin(), dest_ip6.end());
 
-    for (int i = 0; i < dest.size(); ++i) {
+    for (size_t i = 0; i < dest.size(); ++i) {
         std::cout << dest[i].dest_str << std::endl;
         if (!dest[i].address_valid) {
             std::cout << "\t" << "Errored" << std::endl;
@@ -366,7 +366,7 @@ vector<vector<Probe>> multi_traceroute(vector<std::string> dest_str_vec, TraceOp
             for (int p = 0; p < options.probes; ++p) {
                 std::cout << "\t\tProbe: " << p << std::endl;
                 ProbeInfo &probe = probes_info[i][ttl][p];
-                std::cout << "\t\t\t" << probe.did_arrive << std::endl;
+                std::cout << "\t\t\tArrived: " << probe.did_arrive << std::endl;
             }
         }
     }
