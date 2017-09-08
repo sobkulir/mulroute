@@ -30,3 +30,12 @@
 *.exe
 *.out
 *.app
+
+# Ignore the object file dir
+build/
+
+# Ignore any executables
+bin/
+
+# Ignore Mac specific files
+.DS_Store
