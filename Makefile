@@ -7,7 +7,7 @@ BINDIR:=bin
 CXX:=g++
 CPPFLAGS:=-Wall -pthread -O2
 CXXFLAGS:=-std=c++11
-LDFLAGS:=-O2
+LDFLAGS:=-O2 -pthread
 
 # Paths
 SRCEXT:=cpp
