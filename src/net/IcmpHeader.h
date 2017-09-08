@@ -11,7 +11,7 @@
 #include <cstdint>
 #include <vector>
 
-/* Should be at least 8, since the ICMP header is 8 bytes long */
+/* Must be at least 8, since the ICMP header is 8 bytes long */
 constexpr size_t DEF_ICMP_PACKET_LEN = 16;
 
 
@@ -39,19 +39,25 @@ public:
     virtual void set_payload(const std::vector<char> &payload_buf, size_t buf_length) = 0;
 
     /*
-     * Method prep_to_send should be called before sending the packet
+     * Method prep_to_send must be called before sending the packet
      * For ICMPv4 it fills the checksum field in the header
      */
     virtual void prep_to_send() { };
 
 protected:
     AddressFamily _family;
+
+    /* This is a buffer that stores the packet in network byte-order */
     std::vector<char> _packet;
     size_t _length;
 
     void _set_payload(const std::vector<char> &buf, size_t buf_length, size_t hdr_length);
 };
 
+/*
+ * Icmp6Header is an implementation of IcmpHeader and basically a wrapper over
+ * struct icmp6_hdr defined in <netinet/icmp6.h>
+ */
 class Icmp6Header : public virtual IcmpHeader {
 public:
     Icmp6Header();
@@ -100,7 +106,10 @@ struct icmp4_hdr
   } un;
 };
 
-
+/*
+ * Class Icmp4Header implements IcmpHeader and is a wrapper over
+ * struct icmp4_hdr defined above.
+ */
 class Icmp4Header : public virtual IcmpHeader {
 public:
     Icmp4Header();

@@ -58,10 +58,10 @@ int Socket::recv(char *recv_buf, size_t buf_length, Address &from) {
     return status;
 }
 
-bool Socket::wait_for_recv(int seconds) {
+bool Socket::wait_for_recv(int seconds, int microseconds) {
     timeval tv = {};
     tv.tv_sec = seconds;
-    tv.tv_usec = 0;
+    tv.tv_usec = microseconds;
 
     fd_set set;
     FD_ZERO(&set);
