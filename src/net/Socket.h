@@ -14,7 +14,12 @@ public:
 
     int send(char *send_buf, size_t buf_length, const Address &to);
     int recv(char *recv_buf, size_t buf_length, Address &from);
-    bool wait_for_recv(int seconds);
+
+    /*
+     * Method returns true if socket is ready for reading or false if given
+     * amount of seconds passed and there's nothing to read.
+     */
+    bool wait_for_recv(int seconds, int microseconds);
 
     void set_ttl(int ttl);
 

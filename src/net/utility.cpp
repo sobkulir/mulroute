@@ -14,19 +14,24 @@
 #include <cstring>
 #include <cstdint>
 
-Address str_to_address(const std::string ip_or_hostname, AddressFamily addr_family) {
+Address str_to_address(const std::string ip_or_hostname, AddressFamily af_if_unknown) {
     int status;
     struct addrinfo hints, *res = nullptr;
 
+    AddressFamily af = ip_version(ip_or_hostname);
+    if (af == AddressFamily::Unspec) {
+        af = af_if_unknown;
+    }
+
     memset(&hints, 0, sizeof(hints) );
-    hints.ai_family = static_cast<int>(addr_family);
+    hints.ai_family = static_cast<int>(af);
 
     status = getaddrinfo(ip_or_hostname.c_str(), nullptr, &hints, &res);
     if (status) {
         throw GaiException(status);
     }
 
-    // Take first result
+    // Take the first result
     Address addr_ret(res->ai_addr, res->ai_addrlen);
 
     freeaddrinfo (res);
@@ -35,7 +40,7 @@ Address str_to_address(const std::string ip_or_hostname, AddressFamily addr_fami
 }
 
 /*
- * Function returns checksum in network byte order
+ * Function returns checksum in network byte-order
  *
  * The Internet checksum is the one's complement of the one's complement sum of
  * the 16-bit values to be checksummed. If the data length is an odd number,
@@ -74,12 +79,14 @@ uint16_t compute_checksum(uint16_t * addr, int len) {
     return (answer);
 }
 
-AddressFamily ip_version(const std::string src) {
+AddressFamily ip_version(const std::string ip_address) {
     char buf[16];
-    if (inet_pton(AF_INET, src.data(), buf)) {
+
+    if (inet_pton(AF_INET, ip_address.data(), buf)) {
         return AddressFamily::Inet;
-    } else if (inet_pton(AF_INET6, src.data(), buf)) {
+    } else if (inet_pton(AF_INET6, ip_address.data(), buf)) {
         return AddressFamily::Inet6;
     }
+
     return AddressFamily::Unspec;
 }

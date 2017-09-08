@@ -24,8 +24,8 @@ int main() {
     TraceOptions options = {
         af_if_unknown : AddressFamily::Inet,
         probes : 1,
-        break_len : 50,
-        max_ttl : 30,
+        break_len : 500,
+        max_ttl : 1,
         timeout_len : 1000,
     };
 

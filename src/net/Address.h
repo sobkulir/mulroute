@@ -22,6 +22,7 @@ public:
 
     void set_length(int length);
 
+    /* This method does a dns lookup and fills _hostname */
     std::string retrieve_hostname();
 
 private:
