@@ -24,10 +24,11 @@ int main() {
     TraceOptions options = {
         af_if_unknown : AddressFamily::Inet,
         probes : 1,
-        break_len : 500,
+        break_len : 200,
         max_ttl : 1,
         timeout_len : 1000,
     };
 
-    multi_traceroute(to_trace, options);
+    TraceResult res;
+    multi_traceroute(to_trace, options, res);
 }
