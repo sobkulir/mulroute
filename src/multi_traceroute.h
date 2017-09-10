@@ -17,6 +17,7 @@ struct TraceOptions {
     int break_len;
     int max_ttl;
     int timeout_len;
+    bool dns_lookup;
 };
 
 /* Structure holds information about single destination that should be tracerouted. */
@@ -44,6 +45,6 @@ struct TraceResult {
     std::vector<std::vector<std::vector<ProbeInfo>>> probes_info_ip4, probes_info_ip6;
 };
 
-void multi_traceroute(std::vector<std::string> dest, TraceOptions options, TraceResult res);
+TraceResult multi_traceroute(std::vector<std::string> dest, TraceOptions options);
 
 #endif // NET_MULTI_TRACEROUTE_H

@@ -27,8 +27,9 @@ int main() {
         break_len : 200,
         max_ttl : 1,
         timeout_len : 1000,
+        dns_lookup : true,
     };
 
     TraceResult res;
-    multi_traceroute(to_trace, options, res);
+    res = multi_traceroute(to_trace, options);
 }

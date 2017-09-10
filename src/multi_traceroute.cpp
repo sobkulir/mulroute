@@ -20,6 +20,7 @@
 #include <thread>
 #include <exception>
 #include <cstdlib>
+#include <map>
 
 #include <cstdio>
 
@@ -339,7 +340,32 @@ void send_and_recv(AddressFamily af,
     t1.join();
 }
 
-void multi_traceroute(vector<std::string> dest_str_vec, TraceOptions options, TraceResult res) {
+void lookup_hostnames(vector<vector<vector<ProbeInfo>>> &probes_info) {
+    std::map<std::string, std::string> ips_done;
+
+    for (auto &dest : probes_info) {
+        for (auto &ttl : dest) {
+            for (auto &probe : ttl) {
+                if (!probe.did_arrive) {
+                    continue;
+                }
+
+                std::string ip = probe.offender.get_ip_str();
+
+                if (ips_done.find(ip) == ips_done.end()) {
+                    // IP was not processed yet
+                    probe.offender.retrieve_hostname();
+                    ips_done[ip] = probe.offender.get_hostname();
+                } else {
+                    probe.offender.set_hostname(ips_done[ip]);
+                }
+            }
+        }
+    }
+}
+
+TraceResult multi_traceroute(vector<std::string> dest_str_vec, TraceOptions options) {
+    TraceResult res;
 
     // Resolving users input addresses into Address structures
     for (std::string ip_or_hostname : dest_str_vec) {
@@ -394,6 +420,7 @@ void multi_traceroute(vector<std::string> dest_str_vec, TraceOptions options, Tr
               options);
     }
 
-    // resolve hostnames
+    lookup_hostnames(res.probes_info_ip4);
 
+    return res;
 }
