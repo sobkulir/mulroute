@@ -15,9 +15,9 @@ struct TraceOptions {
     AddressFamily af_if_unknown;
     int probes;
     int sendwait;
+    int waittime;
     int start_ttl;
     int max_ttl;
-    int timeout_len;
     bool map_ip_to_host;
 };
 

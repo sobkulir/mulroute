@@ -173,12 +173,12 @@ void recv_probes(AddressFamily af,
 
         if (all_sent) {
             /*
-             * All probes have been sent, we start timeout of options.timeout_len miliseconds and then
+             * All probes have been sent, we start timeout of options.waittime miliseconds and then
              * terminate.
              */
             if (timeout_started) {
                 std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
-                if (std::chrono::duration_cast<std::chrono::milliseconds>(now - all_sent_time).count() > options.timeout_len) {
+                if (std::chrono::duration_cast<std::chrono::milliseconds>(now - all_sent_time).count() > options.waittime) {
                     break;
                 }
             } else {
@@ -197,8 +197,10 @@ void recv_probes(AddressFamily af,
 
         auto recv_time = std::chrono::steady_clock::now();
 
-        /*
+
         int n_bytes = sock.recv(recv_buf, RECV_BUF_SIZE, from);
+
+        /*
         for (int i = 0; i < n_bytes; ++i) {
             printf("%02X ", ((unsigned char *) recv_buf)[i]);
         }
@@ -413,6 +415,7 @@ TraceResult multi_traceroute(vector<std::string> dest_str_vec, TraceOptions opti
               icmp4_seq_offset,
               options);
     }
+
     if (res.dest_ip6.size() > 0) {
         send_and_recv(AddressFamily::Inet6,
               res.dest_ip6,
