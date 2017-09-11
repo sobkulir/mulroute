@@ -161,15 +161,22 @@ void recv_probes(AddressFamily af,
                  int seq_offset,
                  TraceOptions options)
 {
-    Socket sock = Socket(af, SocketType::Raw, (af == AddressFamily::Inet) ? Protocol::ICMP : Protocol::ICMPv6);
-
+    std::shared_ptr<Socket> sock;
+    try {
+        sock = std::make_shared<Socket>(af, SocketType::Raw, (af == AddressFamily::Inet) ? Protocol::ICMP : Protocol::ICMPv6);
+    } catch (const std::exception &e) {
+        return;
+    }
     bool timeout_started = false;
     std::chrono::steady_clock::time_point all_sent_time;
 
     Address from;
     char recv_buf[RECV_BUF_SIZE];
 
+    int count_received = 0;
+
     while (true) {
+        std::cout << "\rReceiving packets: " << count_received << std::flush;
 
         if (all_sent) {
             /*
@@ -191,21 +198,13 @@ void recv_probes(AddressFamily af,
          * Passively wait at most RECV_TIMEOUT_SEC seconds + RECV_TIMEOUT_USEC microseconds for
          * socket to be ready for reading.
          */
-        if (!sock.wait_for_recv(RECV_TIMEOUT_SEC, RECV_TIMEOUT_USEC)) {
+        if (!sock->wait_for_recv(RECV_TIMEOUT_SEC, RECV_TIMEOUT_USEC)) {
             continue;
         }
 
         auto recv_time = std::chrono::steady_clock::now();
+        int n_bytes = sock->recv(recv_buf, RECV_BUF_SIZE, from);
 
-
-        int n_bytes = sock.recv(recv_buf, RECV_BUF_SIZE, from);
-
-        /*
-        for (int i = 0; i < n_bytes; ++i) {
-            printf("%02X ", ((unsigned char *) recv_buf)[i]);
-        }
-        std::cout << std::endl;
-        */
         /*
          *                                 ICMPv4 ERROR responses
          *
@@ -302,8 +301,11 @@ void recv_probes(AddressFamily af,
         probe_ref.did_arrive = true;
         probe_ref.icmp_status = icmp_status;
         probe_ref.recv_time = recv_time;
+
+        ++count_received;
     }
 
+    std::cout << "\r" << std::flush;
 }
 
 void send_and_recv(AddressFamily af,
@@ -319,20 +321,20 @@ void send_and_recv(AddressFamily af,
                        vector<vector<ProbeInfo>>(options.max_ttl - options.start_ttl + 1,
                                                  vector<ProbeInfo>(options.probes, ProbeInfo())));
 
-    std::thread t1(recv_probes,
-                   af,
-                   std::ref(ttl_done),
-                   std::ref(all_sent),
-                   std::ref(probes_info),
-                   id_offset,
-                   seq_offset,
-                   options);
+    std::thread t1 = std::thread(recv_probes,
+                                 af,
+                                 std::ref(ttl_done),
+                                 std::ref(all_sent),
+                                 std::ref(probes_info),
+                                 id_offset,
+                                 seq_offset,
+                                 options);
 
     try {
         send_probes(af, dest, ttl_done, probes_info, id_offset, seq_offset, options);
     } catch (const std::exception &e) {
         std::cerr << "Caught exception: " << e.what() << std::endl;
-
+        std::cerr << "Try running the program in a priviledged mode" << std::endl;
         /*
          * If sending fails, we have to set all_sent to true so that receiving terminates
          */
@@ -385,7 +387,7 @@ TraceResult multi_traceroute(vector<std::string> dest_str_vec, TraceOptions opti
 
         } catch (const GaiException& e) {
             std::cerr << "Skipping \"" << ip_or_hostname << "\", an exception was caught: "
-                      << "\n\tError code: " << e.code() << " " << e.what() << std::endl;
+                      << "\n\tError code: " << e.code() << " " << e.what() << "\n" << std::endl;
 
             res.dest_error.push_back(DestInfo(Address(), ip_or_hostname, false));
         }

@@ -103,7 +103,7 @@ void print_routes(vector<vector<vector<ProbeInfo>>> &probes_info, vector<DestInf
         }
 
         /*
-         * Signal that we didn't reach the destination
+         * Show that the destination wasn't reached
          * Eg.:
          *      16  et-17-1.fab1-1-gdc.ne1.yahoo.com (98.138.0.79)  223.473 ms  225.312 ms
          *      17  po-10.bas1-7-prd.ne1.yahoo.com (98.138.240.6)  225.251 ms  226.105 ms
@@ -128,7 +128,38 @@ void print_routes(vector<vector<vector<ProbeInfo>>> &probes_info, vector<DestInf
     }
 }
 
-TraceOptions get_args(int argc, char *const argv[], vector<std::string> &to_trace) {
+std::string usage(const char *prog_name) {
+    return "usage: " + std::string(prog_name) +
+           " [46nh] [-f start_ttl] [-m max_ttl] [-p nprobes]\n"
+           "          [-z sendwait] [-w waittime] [host...]\n";
+}
+
+std::string help(const char *prog_name) {
+    return usage(prog_name) +
+    "\n"
+    "Mulroute - multi destination ICMP traceroute. Specify hosts as operands\n"
+    "or write them to standard input (whitespace separated). Application\n"
+    "uses raw sockets so it needs to be run in a privilidged mode.\n"
+    "\n"
+    "Arguments:\n"
+    "  hosts                    Hosts to traceroute. If not provided, read\n"
+    "                           them from stdin.\n"
+    "\n"
+    "Options:\n"
+    "  -h                       Show this message and exit\n"
+    "  -4                       If protocol of a host is unknown use IPv4\n"
+    "  -6                       If protocol of a host is unknown use IPv6\n"
+    "  -n                       Do not resolve IP addresses to their domain names\n"
+    "  -f start_ttl             Start from the start_ttl hop (default is 1)\n"
+    "  -m max_ttl               Set maximum number of hops (default is 30)\n"
+    "  -p nprobes               Set the number of probes per each hop (default is 3)\n"
+    "  -z sendwait              Wait sendwait milliseconds before sending next probe\n"
+    "                           (default is 10)\n"
+    "  -w waittime              Wait at least waittime milliseconds for the last probe\n"
+    "                           response (deafult is 500)\n";
+}
+
+TraceOptions get_args(int argc, char *const argv[], vector<std::string> &hosts_to_trace) {
     // Defaults
     TraceOptions options = {};
 
@@ -144,7 +175,7 @@ TraceOptions get_args(int argc, char *const argv[], vector<std::string> &to_trac
 
     int opt;
     opterr = 0;
-    while ((opt = getopt(argc, argv, "46f:m:np:z:w:")) != -1) {
+    while ((opt = getopt(argc, argv, "46hf:m:np:z:w:")) != -1) {
         switch (opt) {
             case '4':
                 options.af_if_unknown = AddressFamily::Inet;
@@ -169,26 +200,27 @@ TraceOptions get_args(int argc, char *const argv[], vector<std::string> &to_trac
                 break;
             case 'w':
                 options.waittime = std::stoi(optarg);
+            case 'h':
+                std::cout << help(argv[0]);
+                exit(EXIT_SUCCESS);
             case '?':
-                std::cerr << "Usage: " << argv[0] << " [46nh] [-f start_ttl] [-m max_ttl] [-p nprobes]\n"
-                    "          [-z sendwait] [-w waittime] [host...]\n\n"
-                    "For more info use \"" << argv[0] << " -h\"\n";
+                std::cerr << usage(argv[0]) << "\nFor more info use \"" << argv[0] <<  " -h\"" << std::endl;
                 exit(EXIT_FAILURE);
             default:
                 abort();
         }
     }
 
-    to_trace.clear();
+    hosts_to_trace.clear();
 
     if (optind < argc) {
         for (int i = optind; i < argc; ++i) {
-            to_trace.push_back(argv[i]);
+            hosts_to_trace.push_back(argv[i]);
         }
     } else {
         std::string host;
         while (std::cin >> host) {
-            to_trace.push_back(host);
+            hosts_to_trace.push_back(host);
         }
     }
 
@@ -196,15 +228,18 @@ TraceOptions get_args(int argc, char *const argv[], vector<std::string> &to_trac
 }
 
 int main(int argc, char *const argv[]) {
-    vector<std::string> to_trace;
+    vector<std::string> hosts_to_trace;
 
-    TraceOptions options = get_args(argc, argv, to_trace);
+    try {
+        TraceOptions options = get_args(argc, argv, hosts_to_trace);
+        TraceResult res = multi_traceroute(hosts_to_trace, options);
 
-    TraceResult res;
-    res = multi_traceroute(to_trace, options);
-
-    print_routes(res.probes_info_ip4, res.dest_ip4, options);
-    print_routes(res.probes_info_ip6, res.dest_ip6, options);
+        print_routes(res.probes_info_ip4, res.dest_ip4, options);
+        print_routes(res.probes_info_ip6, res.dest_ip6, options);
+    } catch (const std::exception &e) {
+        std::cerr << "Caught exception: " << e.what() << std::endl;
+        exit(EXIT_FAILURE);
+    }
 
     exit(EXIT_SUCCESS);
 }
