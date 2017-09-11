@@ -14,10 +14,11 @@
 struct TraceOptions {
     AddressFamily af_if_unknown;
     int probes;
-    int break_len;
+    int sendwait;
+    int start_ttl;
     int max_ttl;
     int timeout_len;
-    bool dns_lookup;
+    bool map_ip_to_host;
 };
 
 /* Structure holds information about single destination that should be tracerouted. */

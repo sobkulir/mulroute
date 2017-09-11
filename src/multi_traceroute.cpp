@@ -118,7 +118,7 @@ void send_probes(AddressFamily af,
         icmp_hdr = std::make_shared<Icmp6Header>(id_offset, seq_offset, payload, payload.size());
     }
 
-    for (int ttl = 1; ttl <= options.max_ttl; ++ttl) {
+    for (int ttl = options.start_ttl; ttl < options.max_ttl; ++ttl) {
         sock.set_ttl(ttl);
 
         for (int p = 0; p < options.probes; ++p) {
@@ -133,10 +133,10 @@ void send_probes(AddressFamily af,
                 icmp_hdr->set_id(dest_to_id(i, id_offset));
                 icmp_hdr->prep_to_send();
 
-                probes_info[i][ttl - 1][p].send_time = std::chrono::steady_clock::now();
+                probes_info[i][ttl - options.start_ttl][p].send_time = std::chrono::steady_clock::now();
 
                 sock.send(icmp_hdr->get_packet_ptr(), icmp_hdr->get_length(), dest[i].address);
-                std::this_thread::sleep_for(std::chrono::milliseconds(options.break_len));
+                std::this_thread::sleep_for(std::chrono::milliseconds(options.sendwait));
             }
         }
     }
@@ -197,12 +197,13 @@ void recv_probes(AddressFamily af,
 
         auto recv_time = std::chrono::steady_clock::now();
 
+        /*
         int n_bytes = sock.recv(recv_buf, RECV_BUF_SIZE, from);
         for (int i = 0; i < n_bytes; ++i) {
             printf("%02X ", ((unsigned char *) recv_buf)[i]);
         }
         std::cout << std::endl;
-
+        */
         /*
          *                                 ICMPv4 ERROR responses
          *
@@ -280,7 +281,7 @@ void recv_probes(AddressFamily af,
 
         // Validate ID and SEQ
         if (dest_ind < 0 || dest_ind >= static_cast<int>(ttl_done.size())
-            || ttl < 1 || ttl > options.max_ttl
+            || ttl < options.start_ttl || ttl > options.max_ttl
             || probe_ind < 0 || probe_ind > options.probes) {
             continue;
         }
@@ -294,7 +295,7 @@ void recv_probes(AddressFamily af,
             }
         }
 
-        ProbeInfo &probe_ref = probes_info[dest_ind][ttl - 1][probe_ind];
+        ProbeInfo &probe_ref = probes_info[dest_ind][ttl - options.start_ttl][probe_ind];
         probe_ref.offender = from;
         probe_ref.did_arrive = true;
         probe_ref.icmp_status = icmp_status;
@@ -312,7 +313,9 @@ void send_and_recv(AddressFamily af,
            TraceOptions options)
 {
     bool all_sent = false;
-    probes_info.assign(dest.size(), vector<vector<ProbeInfo>>(options.max_ttl, vector<ProbeInfo>(options.probes, ProbeInfo())));
+    probes_info.assign(dest.size(),
+                       vector<vector<ProbeInfo>>(options.max_ttl - options.start_ttl + 1,
+                                                 vector<ProbeInfo>(options.probes, ProbeInfo())));
 
     std::thread t1(recv_probes,
                    af,
@@ -420,7 +423,9 @@ TraceResult multi_traceroute(vector<std::string> dest_str_vec, TraceOptions opti
               options);
     }
 
-    lookup_hostnames(res.probes_info_ip4);
+    if (options.map_ip_to_host) {
+        lookup_hostnames(res.probes_info_ip4);
+    }
 
     return res;
 }
