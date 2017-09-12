@@ -62,6 +62,8 @@ class Icmp6Header : public virtual IcmpHeader {
 public:
     Icmp6Header();
     Icmp6Header(char *buf, size_t buf_length);
+
+    // Echo request constructor
     Icmp6Header(u_int16_t id, u_int16_t seq, std::vector<char> &payload_buf, size_t buf_length);
 
     IcmpRespStatus get_resp_status() override;
@@ -114,6 +116,8 @@ class Icmp4Header : public virtual IcmpHeader {
 public:
     Icmp4Header();
     Icmp4Header(char *buf, size_t buf_length);
+
+    // Echo request constructor
     Icmp4Header(u_int16_t id, u_int16_t seq, std::vector<char> &payload_buf, size_t buf_length);
 
     IcmpRespStatus get_resp_status() override;

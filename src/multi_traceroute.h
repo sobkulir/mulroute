@@ -30,6 +30,8 @@ struct DestInfo {
         address(address), dest_str(dest_str), address_valid(valid) { }
 
     Address address;
+
+    // Original string from user
     std::string dest_str;
     bool address_valid;
 };
