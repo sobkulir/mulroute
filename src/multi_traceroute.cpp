@@ -118,7 +118,7 @@ void send_probes(AddressFamily af,
         icmp_hdr = std::make_shared<Icmp6Header>(id_offset, seq_offset, payload, payload.size());
     }
 
-    for (int ttl = options.start_ttl; ttl < options.max_ttl; ++ttl) {
+    for (int ttl = options.start_ttl; ttl <= options.max_ttl; ++ttl) {
         sock.set_ttl(ttl);
 
         for (int p = 0; p < options.probes; ++p) {
@@ -167,6 +167,7 @@ void recv_probes(AddressFamily af,
     } catch (const std::exception &e) {
         return;
     }
+
     bool timeout_started = false;
     std::chrono::steady_clock::time_point all_sent_time;
 

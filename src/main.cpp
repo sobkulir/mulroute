@@ -22,7 +22,7 @@ constexpr bool DEF_MAP_IP_TO_HOST = true;
 
 void print_routes(vector<vector<vector<ProbeInfo>>> &probes_info, vector<DestInfo> &dest, TraceOptions options) {
     // TTLs of last packet that sucessfully returned for each destination
-    vector<int> last_arrived(dest.size());
+    vector<int> last_arrived(dest.size(), options.start_ttl - 1);
 
     for (size_t d = 0; d < probes_info.size(); ++d) {
         for (size_t ttl = 0; ttl < probes_info[d].size(); ++ttl) {
@@ -112,7 +112,7 @@ void print_routes(vector<vector<vector<ProbeInfo>>> &probes_info, vector<DestInf
          *      21  * * *
          */
         if (!dest_reached && last_arrived[d] < options.max_ttl) {
-            int dotted = std::min(options.max_ttl - (last_arrived[d] + 1) - 1, 2);
+            int dotted = std::min(options.max_ttl - last_arrived[d] - 1, 2);
 
             for (int i = 0; i < dotted; ++i) {
                 std::cout << " .  * * *\n";
@@ -138,7 +138,7 @@ std::string help(const char *prog_name) {
     return usage(prog_name) +
     "\n"
     "Mulroute - multi destination ICMP traceroute. Specify hosts as operands\n"
-    "or write them to standard input (whitespace separated). Application\n"
+    "or write them to the standard input (whitespace separated). Application\n"
     "uses raw sockets so it needs to be run in a privilidged mode.\n"
     "\n"
     "Arguments:\n"
@@ -147,7 +147,7 @@ std::string help(const char *prog_name) {
     "\n"
     "Options:\n"
     "  -h                       Show this message and exit\n"
-    "  -4                       If protocol of a host is unknown use IPv4\n"
+    "  -4                       If protocol of a host is unknown use IPv4 (default)\n"
     "  -6                       If protocol of a host is unknown use IPv6\n"
     "  -n                       Do not resolve IP addresses to their domain names\n"
     "  -f start_ttl             Start from the start_ttl hop (default is 1)\n"
@@ -200,6 +200,7 @@ TraceOptions get_args(int argc, char *const argv[], vector<std::string> &hosts_t
                 break;
             case 'w':
                 options.waittime = std::stoi(optarg);
+                break;
             case 'h':
                 std::cout << help(argv[0]);
                 exit(EXIT_SUCCESS);
