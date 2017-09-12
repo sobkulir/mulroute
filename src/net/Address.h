@@ -19,8 +19,10 @@ public:
     struct sockaddr *get_sockaddr_ptr() const;
     socklen_t get_length() const;
     std::string get_hostname() const;
+    std::string get_ip_str() const;
 
     void set_length(int length);
+    void set_hostname(std::string hostname);
 
     /* This method does a dns lookup and fills _hostname */
     std::string retrieve_hostname();

@@ -20,6 +20,7 @@
 #include <thread>
 #include <exception>
 #include <cstdlib>
+#include <map>
 
 #include <cstdio>
 
@@ -34,31 +35,7 @@ constexpr int MIN_IP4_HDR_LEN = 20;
 constexpr int MIN_IP6_HDR_LEN = 40;
 constexpr int ICMP_HDR_LEN = 8;
 
-typedef std::chrono::steady_clock::time_point time_point;
 using std::vector;
-
-/* Class holds information about single destination that should be tracerouted. */
-class DestInfo {
-public:
-    DestInfo() {
-        address = Address();
-    }
-    DestInfo(Address address, std::string dest_str, bool valid) :
-        address(address), dest_str(dest_str), address_valid(valid) { }
-    Address address;
-    std::string dest_str;
-    bool address_valid;
-};
-
-
-class ProbeInfo {
-public:
-    ProbeInfo() { };
-    Address offender;
-    IcmpRespStatus icmp_status;
-    time_point send_time, recv_time;
-    bool did_arrive = false;
-};
 
 inline int get_ip_hdr_len(AddressFamily af, char *ip_hdr) {
     if (af == AddressFamily::Inet) {
@@ -141,7 +118,7 @@ void send_probes(AddressFamily af,
         icmp_hdr = std::make_shared<Icmp6Header>(id_offset, seq_offset, payload, payload.size());
     }
 
-    for (int ttl = 1; ttl <= options.max_ttl; ++ttl) {
+    for (int ttl = options.start_ttl; ttl <= options.max_ttl; ++ttl) {
         sock.set_ttl(ttl);
 
         for (int p = 0; p < options.probes; ++p) {
@@ -156,10 +133,10 @@ void send_probes(AddressFamily af,
                 icmp_hdr->set_id(dest_to_id(i, id_offset));
                 icmp_hdr->prep_to_send();
 
-                probes_info[i][ttl - 1][p].send_time = std::chrono::steady_clock::now();
+                probes_info[i][ttl - options.start_ttl][p].send_time = std::chrono::steady_clock::now();
 
                 sock.send(icmp_hdr->get_packet_ptr(), icmp_hdr->get_length(), dest[i].address);
-                std::this_thread::sleep_for(std::chrono::milliseconds(options.break_len));
+                std::this_thread::sleep_for(std::chrono::milliseconds(options.sendwait));
             }
         }
     }
@@ -184,24 +161,32 @@ void recv_probes(AddressFamily af,
                  int seq_offset,
                  TraceOptions options)
 {
-    Socket sock = Socket(af, SocketType::Raw, (af == AddressFamily::Inet) ? Protocol::ICMP : Protocol::ICMPv6);
+    std::shared_ptr<Socket> sock;
+    try {
+        sock = std::make_shared<Socket>(af, SocketType::Raw, (af == AddressFamily::Inet) ? Protocol::ICMP : Protocol::ICMPv6);
+    } catch (const std::exception &e) {
+        return;
+    }
 
     bool timeout_started = false;
-    time_point all_sent_time;
+    std::chrono::steady_clock::time_point all_sent_time;
 
     Address from;
     char recv_buf[RECV_BUF_SIZE];
 
+    int count_received = 0;
+
     while (true) {
+        std::cout << "\rReceiving packets: " << count_received << std::flush;
 
         if (all_sent) {
             /*
-             * All probes have been sent, we start timeout of options.timeout_len miliseconds and then
+             * All probes have been sent, we start timeout of options.waittime miliseconds and then
              * terminate.
              */
             if (timeout_started) {
-                time_point now = std::chrono::steady_clock::now();
-                if (std::chrono::duration_cast<std::chrono::milliseconds>(now - all_sent_time).count() > options.timeout_len) {
+                std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
+                if (std::chrono::duration_cast<std::chrono::milliseconds>(now - all_sent_time).count() > options.waittime) {
                     break;
                 }
             } else {
@@ -214,17 +199,12 @@ void recv_probes(AddressFamily af,
          * Passively wait at most RECV_TIMEOUT_SEC seconds + RECV_TIMEOUT_USEC microseconds for
          * socket to be ready for reading.
          */
-        if (!sock.wait_for_recv(RECV_TIMEOUT_SEC, RECV_TIMEOUT_USEC)) {
+        if (!sock->wait_for_recv(RECV_TIMEOUT_SEC, RECV_TIMEOUT_USEC)) {
             continue;
         }
 
         auto recv_time = std::chrono::steady_clock::now();
-
-        int n_bytes = sock.recv(recv_buf, RECV_BUF_SIZE, from);
-        for (int i = 0; i < n_bytes; ++i) {
-            printf("%02X ", ((unsigned char *) recv_buf)[i]);
-        }
-        std::cout << std::endl;
+        int n_bytes = sock->recv(recv_buf, RECV_BUF_SIZE, from);
 
         /*
          *                                 ICMPv4 ERROR responses
@@ -303,7 +283,7 @@ void recv_probes(AddressFamily af,
 
         // Validate ID and SEQ
         if (dest_ind < 0 || dest_ind >= static_cast<int>(ttl_done.size())
-            || ttl < 1 || ttl > options.max_ttl
+            || ttl < options.start_ttl || ttl > options.max_ttl
             || probe_ind < 0 || probe_ind > options.probes) {
             continue;
         }
@@ -317,16 +297,19 @@ void recv_probes(AddressFamily af,
             }
         }
 
-        ProbeInfo &probe_ref = probes_info[dest_ind][ttl - 1][probe_ind];
+        ProbeInfo &probe_ref = probes_info[dest_ind][ttl - options.start_ttl][probe_ind];
         probe_ref.offender = from;
         probe_ref.did_arrive = true;
         probe_ref.icmp_status = icmp_status;
         probe_ref.recv_time = recv_time;
+
+        ++count_received;
     }
 
+    std::cout << "\r" << std::flush;
 }
 
-void trace(AddressFamily af,
+void send_and_recv(AddressFamily af,
            const vector<DestInfo> &dest,
            vector<int> &ttl_done,
            vector<vector<vector<ProbeInfo>>> &probes_info,
@@ -335,22 +318,24 @@ void trace(AddressFamily af,
            TraceOptions options)
 {
     bool all_sent = false;
-    probes_info.assign(dest.size(), vector<vector<ProbeInfo>>(options.max_ttl, vector<ProbeInfo>(options.probes, ProbeInfo())));
+    probes_info.assign(dest.size(),
+                       vector<vector<ProbeInfo>>(options.max_ttl - options.start_ttl + 1,
+                                                 vector<ProbeInfo>(options.probes, ProbeInfo())));
 
-    std::thread t1(recv_probes,
-                   af,
-                   std::ref(ttl_done),
-                   std::ref(all_sent),
-                   std::ref(probes_info),
-                   id_offset,
-                   seq_offset,
-                   options);
+    std::thread t1 = std::thread(recv_probes,
+                                 af,
+                                 std::ref(ttl_done),
+                                 std::ref(all_sent),
+                                 std::ref(probes_info),
+                                 id_offset,
+                                 seq_offset,
+                                 options);
 
     try {
         send_probes(af, dest, ttl_done, probes_info, id_offset, seq_offset, options);
     } catch (const std::exception &e) {
         std::cerr << "Caught exception: " << e.what() << std::endl;
-
+        std::cerr << "Try running the program in a priviledged mode" << std::endl;
         /*
          * If sending fails, we have to set all_sent to true so that receiving terminates
          */
@@ -363,8 +348,32 @@ void trace(AddressFamily af,
     t1.join();
 }
 
-vector<vector<Probe>> multi_traceroute(vector<std::string> dest_str_vec, TraceOptions options) {
-    vector<DestInfo> dest, dest_ip4, dest_ip6, dest_error;
+void lookup_hostnames(vector<vector<vector<ProbeInfo>>> &probes_info) {
+    std::map<std::string, std::string> ips_done;
+
+    for (auto &dest : probes_info) {
+        for (auto &ttl : dest) {
+            for (auto &probe : ttl) {
+                if (!probe.did_arrive) {
+                    continue;
+                }
+
+                std::string ip = probe.offender.get_ip_str();
+
+                if (ips_done.find(ip) == ips_done.end()) {
+                    // IP was not processed yet
+                    probe.offender.retrieve_hostname();
+                    ips_done[ip] = probe.offender.get_hostname();
+                } else {
+                    probe.offender.set_hostname(ips_done[ip]);
+                }
+            }
+        }
+    }
+}
+
+TraceResult multi_traceroute(vector<std::string> dest_str_vec, TraceOptions options) {
+    TraceResult res;
 
     // Resolving users input addresses into Address structures
     for (std::string ip_or_hostname : dest_str_vec) {
@@ -372,71 +381,57 @@ vector<vector<Probe>> multi_traceroute(vector<std::string> dest_str_vec, TraceOp
             Address dest_address = str_to_address(ip_or_hostname, options.af_if_unknown);
 
             if (dest_address.get_family() == AddressFamily::Inet) {
-                dest_ip4.push_back(DestInfo(dest_address, ip_or_hostname, true));
+                res.dest_ip4.push_back(DestInfo(dest_address, ip_or_hostname, true));
             } else {
-                dest_ip6.push_back(DestInfo(dest_address, ip_or_hostname, true));
+                res.dest_ip6.push_back(DestInfo(dest_address, ip_or_hostname, true));
             }
 
         } catch (const GaiException& e) {
             std::cerr << "Skipping \"" << ip_or_hostname << "\", an exception was caught: "
-                      << "\n\tError code: " << e.code() << " " << e.what() << std::endl;
+                      << "\n\tError code: " << e.code() << " " << e.what() << "\n" << std::endl;
 
-            dest_error.push_back(DestInfo(Address(), ip_or_hostname, false));
+            res.dest_error.push_back(DestInfo(Address(), ip_or_hostname, false));
         }
     }
 
 
     vector<int> ttl_done,
-                ttl_done_ip4(dest_ip4.size(), DEF_TTL_DONE),
-                ttl_done_ip6(dest_ip6.size(), DEF_TTL_DONE);
+                ttl_done_ip4(res.dest_ip4.size(), DEF_TTL_DONE),
+                ttl_done_ip6(res.dest_ip6.size(), DEF_TTL_DONE);
 
     std::random_device r;
     std::default_random_engine e1(r());
-    std::uniform_int_distribution<int> icmp4_dist(0, ICMP_SEQ_ID_MAX - dest_ip4.size() * options.probes),
-                                       icmp6_dist(0, ICMP_SEQ_ID_MAX - dest_ip6.size() * options.probes);
+    std::uniform_int_distribution<int> icmp4_dist(0, ICMP_SEQ_ID_MAX - res.dest_ip4.size() * options.probes),
+                                       icmp6_dist(0, ICMP_SEQ_ID_MAX - res.dest_ip6.size() * options.probes);
 
     int icmp4_id_offset = icmp4_dist(e1),
         icmp4_seq_offset = icmp4_dist(e1),
         icmp6_id_offset = icmp6_dist(e1),
         icmp6_seq_offset = icmp6_dist(e1);
 
-    vector<vector<vector<ProbeInfo>>> probes_info, probes_info_ip4, probes_info_ip6;
-
-    if (dest_ip4.size() > 0) {
-        trace(AddressFamily::Inet, dest_ip4, ttl_done_ip4, probes_info_ip4, icmp4_id_offset, icmp4_seq_offset, options);
+    if (res.dest_ip4.size() > 0) {
+        send_and_recv(AddressFamily::Inet,
+              res.dest_ip4,
+              ttl_done_ip4,
+              res.probes_info_ip4,
+              icmp4_id_offset,
+              icmp4_seq_offset,
+              options);
     }
-    if (dest_ip6.size() > 0) {
-        trace(AddressFamily::Inet6, dest_ip6, ttl_done_ip6, probes_info_ip6, icmp6_id_offset, icmp6_seq_offset, options);
+
+    if (res.dest_ip6.size() > 0) {
+        send_and_recv(AddressFamily::Inet6,
+              res.dest_ip6,
+              ttl_done_ip6,
+              res.probes_info_ip6,
+              icmp6_id_offset,
+              icmp6_seq_offset,
+              options);
     }
 
-    // Merge results
-    probes_info = probes_info_ip4;
-    probes_info.insert(probes_info.end(), probes_info_ip6.begin(), probes_info_ip6.end());
-
-    ttl_done = ttl_done_ip4;
-    ttl_done.insert(ttl_done.end(), ttl_done_ip6.begin(), ttl_done_ip6.end());
-
-    dest = dest_ip4;
-    dest.insert(dest.end(), dest_ip6.begin(), dest_ip6.end());
-
-    for (size_t i = 0; i < dest.size(); ++i) {
-        std::cout << dest[i].dest_str << std::endl;
-        if (!dest[i].address_valid) {
-            std::cout << "\t" << "Errored" << std::endl;
-            continue;
-        }
-        for (int ttl = 0; ttl < std::min(ttl_done[i], options.max_ttl); ++ttl) {
-            std::cout << "\tTTL: " << ttl+1 << std::endl;
-            for (int p = 0; p < options.probes; ++p) {
-                std::cout << "\t\tProbe: " << p << std::endl;
-                ProbeInfo &probe = probes_info[i][ttl][p];
-                std::cout << "\t\t\tArrived: " << probe.did_arrive << std::endl;
-            }
-        }
+    if (options.map_ip_to_host) {
+        lookup_hostnames(res.probes_info_ip4);
     }
-    // compute RTTs for probes
-    // resolve hostnames
 
-    // happily return, YAY
-    return vector<vector<Probe>>();
+    return res;
 }
