@@ -148,7 +148,7 @@ void send_probes(AddressFamily af,
  *
  * Since this function will run simultaneously with send_probes, we need to know when to stop it.
  * Variable all_sent is used exactly for this - when all probes are sent, all_sent variable is set to
- * true and we stop receiving roughly after options.timeout_len miliseconds.
+ * true and we stop receiving roughly after options.waittime miliseconds.
  *
  * ttl_done     - a vector where k-th element is the smallest ttl of packet which reached k-th
  *                destination from dest vector (used in send_probes).
@@ -254,9 +254,8 @@ void recv_probes(AddressFamily af,
         switch (icmp_status) {
             case IcmpRespStatus::Unknown:
                 continue;
-            case IcmpRespStatus::EchoReply: {
+            case IcmpRespStatus::EchoReply:
                 break;
-            }
             default: {
                 // Is enough bytes received for error
                 if (n_bytes < ip_hdr_len1 + ICMP_HDR_LEN + min_ip_hdr_len(af) + 8) {
@@ -401,13 +400,14 @@ TraceResult multi_traceroute(vector<std::string> dest_str_vec, TraceOptions opti
 
     std::random_device r;
     std::default_random_engine e1(r());
-    std::uniform_int_distribution<int> icmp4_dist(0, ICMP_SEQ_ID_MAX - res.dest_ip4.size() * options.probes),
-                                       icmp6_dist(0, ICMP_SEQ_ID_MAX - res.dest_ip6.size() * options.probes);
+    std::uniform_int_distribution<int> icmp_seq_dist(0, ICMP_SEQ_ID_MAX - options.probes * options.max_ttl),
+                                       icmp4_id_dist(0, ICMP_SEQ_ID_MAX - res.dest_ip4.size()),
+                                       icmp6_id_dist(0, ICMP_SEQ_ID_MAX - res.dest_ip6.size());
 
-    int icmp4_id_offset = icmp4_dist(e1),
-        icmp4_seq_offset = icmp4_dist(e1),
-        icmp6_id_offset = icmp6_dist(e1),
-        icmp6_seq_offset = icmp6_dist(e1);
+    int icmp4_id_offset = icmp4_id_dist(e1),
+        icmp4_seq_offset = icmp_seq_dist(e1),
+        icmp6_id_offset = icmp6_id_dist(e1),
+        icmp6_seq_offset = icmp_seq_dist(e1);
 
     if (res.dest_ip4.size() > 0) {
         send_and_recv(AddressFamily::Inet,
