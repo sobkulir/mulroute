@@ -8,6 +8,7 @@
 #include <chrono>
 #include <cstdlib>
 #include <unistd.h>
+#include <exception>
 
 using std::vector;
 
@@ -155,8 +156,42 @@ std::string help(const char *prog_name) {
     "  -p nprobes               Set the number of probes per each hop (default is 3)\n"
     "  -z sendwait              Wait sendwait milliseconds before sending next probe\n"
     "                           (default is 10)\n"
-    "  -w waittime              Wait at least waittime milliseconds for the last probe\n"
-    "                           response (deafult is 500)\n";
+    "  -w waittime              Wait at least waittime milliseconds for the\n"
+    "                           last probe response (deafult is 500)\n";
+}
+
+void validate(TraceOptions options) {
+    switch (options.af_if_unknown) {
+        case AddressFamily::Inet:
+        case AddressFamily::Inet6:
+            break;
+        default:
+            throw std::runtime_error("Address family for \"af_if_unknown\" is corrupted");
+    }
+
+    if (options.probes < 1) {
+        throw std::runtime_error("Number of probes (nprobes) must be greater than 0");
+    }
+
+    if (options.sendwait < 0) {
+        throw std::runtime_error("sendwait must be at least 0");
+    }
+
+    if (options.waittime < 0) {
+        throw std::runtime_error("waittime must be at least 0");
+    }
+
+    if (options.start_ttl < 1 || options.start_ttl > 255) {
+        throw std::runtime_error("start_ttl must be a number in range [1, 255]");
+    }
+
+    if (options.max_ttl < 1 || options.max_ttl > 255) {
+        throw std::runtime_error("max_ttl must be a number in range [1, 255]");
+    }
+
+    if (options.start_ttl > options.max_ttl) {
+        throw std::runtime_error("start_tll must be less than or equal to max_ttl");
+    }
 }
 
 TraceOptions get_args(int argc, char *const argv[], vector<std::string> &hosts_to_trace) {
@@ -233,6 +268,8 @@ int main(int argc, char *const argv[]) {
 
     try {
         TraceOptions options = get_args(argc, argv, hosts_to_trace);
+        validate(options);
+
         TraceResult res = multi_traceroute(hosts_to_trace, options);
 
         print_routes(res.probes_info_ip4, res.dest_ip4, options);
