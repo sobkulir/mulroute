@@ -2,6 +2,7 @@
 Mulroute is a multi destination IPv4/IPv6 traceroute for OS X and Linux. You can specify 
 hosts as operands or write them to the standard input (whitespace separated).
 Application uses raw sockets so it needs to be run in a privileged mode.
+
 **Warning**: IPv6 version has not been fully tested yet.
 
 ## Getting started
@@ -27,7 +28,7 @@ $  sudo ln -sf "$PWD"/bin/mulroute /usr/local/bin
 ```
 
 #### Setting SUID
-Note that `mulroute`, as well as other network utilities like `ping`, needs root
+Note that `mulroute` as well as other network utilities like `ping` needs root
 privilidges. In case of `ping`, the owner is set to `root` and the executable's `SUID`
 bit is set. This step is optional and you should know what you are doing.
 ```
