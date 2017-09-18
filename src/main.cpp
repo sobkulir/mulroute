@@ -273,6 +273,12 @@ int main(int argc, char *const argv[]) {
         TraceResult res = multi_traceroute(hosts_to_trace, options);
 
         print_routes(res.probes_info_ip4, res.dest_ip4, options);
+
+        // A newline between IPv4 and IPv6 addresses
+        if (res.dest_ip4.size() > 0 && res.dest_ip6.size() > 0) {
+            std::cout << std::endl;
+        }
+
         print_routes(res.probes_info_ip6, res.dest_ip6, options);
     } catch (const std::exception &e) {
         std::cerr << "Caught exception: " << e.what() << std::endl;

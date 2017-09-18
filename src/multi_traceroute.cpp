@@ -431,6 +431,7 @@ TraceResult multi_traceroute(vector<std::string> dest_str_vec, TraceOptions opti
 
     if (options.map_ip_to_host) {
         lookup_hostnames(res.probes_info_ip4);
+        lookup_hostnames(res.probes_info_ip6);
     }
 
     return res;
