@@ -1,8 +1,7 @@
 # Mulroute
-Mulroute is a multi destination IPv4/IPv6 traceroute for OS X and Linux. You can specify 
+Mulroute is a multi destination IPv4/IPv6 traceroute for OS X and Linux. You can specify
 hosts as operands or write them to the standard input (whitespace separated).
-Application uses raw sockets so it needs to be run in a privilidged mode.
-**Warning**: IPv6 version has not been fully tested yet.
+Application uses raw sockets so it needs to be run in a privileged mode.
 
 ## Getting started
 These instructions will get you a copy of the project up and running on your local machine.
@@ -27,7 +26,7 @@ $  sudo ln -sf "$PWD"/bin/mulroute /usr/local/bin
 ```
 
 #### Setting SUID
-Note that `mulroute`, as well as other network utilities like `ping`, needs root
+Note that `mulroute` as well as other network utilities like `ping` needs root
 privilidges. In case of `ping`, the owner is set to `root` and the executable's `SUID`
 bit is set. This step is optional and you should know what you are doing.
 ```
@@ -43,13 +42,13 @@ traceroute to google.com (172.217.16.110), 30 hops max
  1  nbg-416n (192.168.1.1)  1.875 ms  1.748 ms  1.724 ms
  2  10.10.10.1 (10.10.10.1)  2.288 ms  1.992 ms  2.006 ms
  3  192.168.201.65 (192.168.201.65)  3.354 ms  3.202 ms  3.051 ms
- (etc)
+ (omitting 8 lines)
 
 traceroute to github.com (192.30.253.112), 30 hops max
  1  nbg-416n (192.168.1.1)  1.790 ms  1.698 ms  1.735 ms
  2  10.10.10.1 (10.10.10.1)  2.131 ms  1.991 ms  2.049 ms
  3  192.168.201.65 (192.168.201.65)  3.355 ms  3.779 ms  3.420 ms
- (etc)
+ (omitting 12 lines)
 ```
 
 The hosts can be also read from the standard input:
@@ -108,11 +107,11 @@ Also do not resolve IP addresses from received probes to domain names.
 
 ## Under the hood
 The idea behind this traceroute utility is fairly simple. The app uses **two threads** -
-one for *sending* the probes and one for *receiving*. 
+one for *sending* the probes and one for *receiving*.
 
 ### Sending
 Every probe is an `ICMP Echo Request` packet which has its `ID` and `SEQ` fields set
-according to the current destination, ttl and probe number. 
+according to the current destination, ttl and probe number.
 
 We start with TTL `start_ttl` and gradually send the probes with this TTL to every destination.
 
