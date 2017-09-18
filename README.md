@@ -1,9 +1,7 @@
 # Mulroute
-Mulroute is a multi destination IPv4/IPv6 traceroute for OS X and Linux. You can specify 
+Mulroute is a multi destination IPv4/IPv6 traceroute for OS X and Linux. You can specify
 hosts as operands or write them to the standard input (whitespace separated).
 Application uses raw sockets so it needs to be run in a privileged mode.
-
-**Warning**: IPv6 version has not been fully tested yet.
 
 ## Getting started
 These instructions will get you a copy of the project up and running on your local machine.
@@ -109,11 +107,11 @@ Also do not resolve IP addresses from received probes to domain names.
 
 ## Under the hood
 The idea behind this traceroute utility is fairly simple. The app uses **two threads** -
-one for *sending* the probes and one for *receiving*. 
+one for *sending* the probes and one for *receiving*.
 
 ### Sending
 Every probe is an `ICMP Echo Request` packet which has its `ID` and `SEQ` fields set
-according to the current destination, ttl and probe number. 
+according to the current destination, ttl and probe number.
 
 We start with TTL `start_ttl` and gradually send the probes with this TTL to every destination.
 
