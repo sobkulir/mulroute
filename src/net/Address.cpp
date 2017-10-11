@@ -13,16 +13,16 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
-Address::Address() : _length(sizeof(struct sockaddr_storage)) {
+Address::Address() : length_(sizeof(struct sockaddr_storage)) {
 
 }
 
-Address::Address(const sockaddr *info, socklen_t length) : _length(length) {
-    memcpy(&(this->_info), info, length);
+Address::Address(const sockaddr *info, socklen_t length) : length_(length) {
+    memcpy(&(this->info_), info, length);
 }
 
 AddressFamily Address::get_family() const {
-    switch (_info.ss_family) {
+    switch (info_.ss_family) {
         case static_cast<int>(AddressFamily::Inet):
             return AddressFamily::Inet;
 
@@ -35,15 +35,15 @@ AddressFamily Address::get_family() const {
 }
 
 struct sockaddr *Address::get_sockaddr_ptr() const {
-    return (struct sockaddr *) &_info;
+    return (struct sockaddr *) &info_;
 }
 
 socklen_t Address::get_length() const {
-    return _length;
+    return length_;
 }
 
 std::string Address::get_hostname() const {
-    return _hostname;
+    return hostname_;
 }
 
 std::string Address::get_ip_str() const {
@@ -68,11 +68,11 @@ std::string Address::get_ip_str() const {
 }
 
 void Address::set_length(int length) {
-    _length = length;
+    length_ = length;
 }
 
 void Address::set_hostname(std::string hostname) {
-    _hostname = hostname;
+    hostname_ = hostname;
 }
 
 std::string Address::retrieve_hostname() {
@@ -92,7 +92,7 @@ std::string Address::retrieve_hostname() {
         throw GaiException(status);
     }
 
-    _hostname = std::string(hostname_buf);
+    hostname_ = std::string(hostname_buf);
 
-    return _hostname;
+    return hostname_;
 }

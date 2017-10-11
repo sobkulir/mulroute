@@ -20,7 +20,7 @@ constexpr size_t DEF_ICMP_PACKET_LEN = 16;
  */
 class IcmpHeader {
 public:
-    IcmpHeader() : _family(AddressFamily::Unspec), _length(0) { };
+    IcmpHeader() : family_(AddressFamily::Unspec), length_(0) { };
     IcmpHeader(char *buf, size_t buf_length, AddressFamily family);
 
     char *get_packet_ptr(size_t &length);
@@ -45,13 +45,13 @@ public:
     virtual void prep_to_send() { };
 
 protected:
-    AddressFamily _family;
+    AddressFamily family_;
 
     /* This is a buffer that stores the packet in network byte-order */
-    std::vector<char> _packet;
-    size_t _length;
+    std::vector<char> packet_;
+    size_t length_;
 
-    void _set_payload(const std::vector<char> &buf, size_t buf_length, size_t hdr_length);
+    void set_payload_(const std::vector<char> &buf, size_t buf_length, size_t hdr_length);
 };
 
 /*
@@ -77,8 +77,8 @@ public:
     void set_payload(const std::vector<char> &payload_buf, size_t buf_length) override;
 
 private:
-    inline struct icmp6_hdr *_hdr_ptr() {
-        return (struct icmp6_hdr *) _packet.data();
+    inline struct icmp6_hdr *hdr_ptr_() {
+        return (struct icmp6_hdr *) packet_.data();
     }
 };
 
@@ -102,7 +102,7 @@ struct icmp4_hdr
     u_int32_t   gateway;    /* gateway address */
     struct
     {
-      u_int16_t _unused;
+      u_int16_t unused_;
       u_int16_t mtu;
     } frag;         /* path mtu discovery */
   } un;
@@ -133,8 +133,8 @@ public:
     void prep_to_send() override;
 
 private:
-    inline struct icmp4_hdr *_hdr_ptr() {
-        return (struct icmp4_hdr *) _packet.data();
+    inline struct icmp4_hdr *hdr_ptr_() {
+        return (struct icmp4_hdr *) packet_.data();
     }
 };
 

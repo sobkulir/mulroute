@@ -25,8 +25,8 @@ public:
 
     virtual ~Socket();
 private:
-    int _socket_FD = -1;
-    AddressFamily _family;
+    int socket_FD_ = -1;
+    AddressFamily family_;
 };
 
 #endif  // NET_SOCKET_H
