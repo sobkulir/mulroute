@@ -24,14 +24,14 @@ public:
     void set_length(int length);
     void set_hostname(std::string hostname);
 
-    /* This method does a dns lookup and fills _hostname */
+    /* This method does a dns lookup and fills hostname_ */
     std::string retrieve_hostname();
 
 private:
-    sockaddr_storage _info;
-    socklen_t _length;
+    sockaddr_storage info_;
+    socklen_t length_;
 
-    std::string _hostname;
+    std::string hostname_;
 };
 
 #endif // NET_ADDRESS_H

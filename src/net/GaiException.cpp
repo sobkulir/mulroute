@@ -6,9 +6,9 @@
 #include <netdb.h>
 
 const char *GaiException::what() const noexcept {
-    return gai_strerror(_code);
+    return gai_strerror(code_);
 }
 
 const int GaiException::code() const noexcept {
-    return _code;
+    return code_;
 }

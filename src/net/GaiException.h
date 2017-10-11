@@ -9,12 +9,12 @@
 
 class GaiException : public std::exception {
 public:
-    explicit GaiException(int code) : _code(code) {}
+    explicit GaiException(int code) : code_(code) {}
 
     const char *what() const noexcept override;
     const int code() const noexcept;
 private:
-    int _code;
+    int code_;
 };
 
 #endif // NET_GAIEXCEPTION_H

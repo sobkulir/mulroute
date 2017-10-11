@@ -17,33 +17,33 @@
  */
 
 IcmpHeader::IcmpHeader(char *buf, size_t buf_length, AddressFamily family) {
-    _packet = std::vector<char>(buf_length, 0);
-    memcpy(_packet.data(), buf, buf_length);
-    _length = buf_length;
-    _family = family;
+    packet_ = std::vector<char>(buf_length, 0);
+    memcpy(packet_.data(), buf, buf_length);
+    length_ = buf_length;
+    family_ = family;
 }
 
 char *IcmpHeader::get_packet_ptr(size_t &length) {
-    length = _length;
-    return _packet.data();
+    length = length_;
+    return packet_.data();
 }
 
 char *IcmpHeader::get_packet_ptr() {
-    return _packet.data();
+    return packet_.data();
 }
 
-void IcmpHeader::_set_payload(const std::vector<char> &payload_buf, size_t buf_length, size_t hdr_length) {
+void IcmpHeader::set_payload_(const std::vector<char> &payload_buf, size_t buf_length, size_t hdr_length) {
     size_t new_length = buf_length + hdr_length;
-    if (new_length > _packet.size()) {
-        _packet.resize(new_length);
+    if (new_length > packet_.size()) {
+        packet_.resize(new_length);
     }
 
-    memcpy(_packet.data() + hdr_length, payload_buf.data(), buf_length);
-    _length = new_length;
+    memcpy(packet_.data() + hdr_length, payload_buf.data(), buf_length);
+    length_ = new_length;
 }
 
 size_t IcmpHeader::get_length() {
-    return _length;
+    return length_;
 }
 
 /*
@@ -51,9 +51,9 @@ size_t IcmpHeader::get_length() {
  */
 
 Icmp6Header::Icmp6Header() {
-    _packet = std::vector<char>(DEF_ICMP_PACKET_LEN, 0);
-    _length = sizeof(struct icmp6_hdr);
-    _family = AddressFamily::Inet6;
+    packet_ = std::vector<char>(DEF_ICMP_PACKET_LEN, 0);
+    length_ = sizeof(struct icmp6_hdr);
+    family_ = AddressFamily::Inet6;
 }
 
 Icmp6Header::Icmp6Header(char *buf, size_t buf_length) :
@@ -67,9 +67,9 @@ Icmp6Header::Icmp6Header(u_int16_t id, u_int16_t seq, std::vector<char> &payload
 }
 
 IcmpRespStatus Icmp6Header::get_resp_status() {
-    switch (Icmp6Type(_hdr_ptr()->icmp6_type)) {
+    switch (Icmp6Type(hdr_ptr_()->icmp6_type)) {
         case Icmp6Type::DstUnreach:
-            switch (Icmp6Code(_hdr_ptr()->icmp6_code)) {
+            switch (Icmp6Code(hdr_ptr_()->icmp6_code)) {
                 case Icmp6Code::NoRoute: return IcmpRespStatus::NetworkUnreachable;
                 case Icmp6Code::Addr: return IcmpRespStatus::HostUnreachable;
                 case Icmp6Code::NoPort: return IcmpRespStatus::PortUnreachable;
@@ -77,7 +77,7 @@ IcmpRespStatus Icmp6Header::get_resp_status() {
                 case Icmp6Code::Admin: return IcmpRespStatus::AdminProhibited;
             }
         case Icmp6Type::ParamProb:
-            switch (Icmp6Code(_hdr_ptr()->icmp6_code)) {
+            switch (Icmp6Code(hdr_ptr_()->icmp6_code)) {
                 case Icmp6Code::NextHeader: return IcmpRespStatus::ProtocolUnreachable;
                 default: return IcmpRespStatus::Unknown;
             }
@@ -90,31 +90,31 @@ IcmpRespStatus Icmp6Header::get_resp_status() {
 }
 
 u_int16_t Icmp6Header::get_id() {
-    return ntohs(_hdr_ptr()->icmp6_id);
+    return ntohs(hdr_ptr_()->icmp6_id);
 }
 
 u_int16_t Icmp6Header::get_seq() {
-    return ntohs(_hdr_ptr()->icmp6_seq);
+    return ntohs(hdr_ptr_()->icmp6_seq);
 }
 
 void Icmp6Header::set_type(Icmp6Type type) {
-    _hdr_ptr()->icmp6_type = static_cast<u_int8_t>(type);
+    hdr_ptr_()->icmp6_type = static_cast<u_int8_t>(type);
 }
 
 void Icmp6Header::set_code(Icmp6Code code) {
-    _hdr_ptr()->icmp6_code = static_cast<u_int8_t>(code);
+    hdr_ptr_()->icmp6_code = static_cast<u_int8_t>(code);
 }
 
 void Icmp6Header::set_id(u_int16_t id) {
-    _hdr_ptr()->icmp6_id = htons(id);
+    hdr_ptr_()->icmp6_id = htons(id);
 }
 
 void Icmp6Header::set_seq(u_int16_t seq) {
-    _hdr_ptr()->icmp6_seq = htons(seq);
+    hdr_ptr_()->icmp6_seq = htons(seq);
 }
 
 void Icmp6Header::set_payload(const std::vector<char> &payload_buf, size_t buf_length) {
-    IcmpHeader::_set_payload(payload_buf, buf_length, sizeof(struct icmp6_hdr));
+    IcmpHeader::set_payload_(payload_buf, buf_length, sizeof(struct icmp6_hdr));
 }
 
 
@@ -123,9 +123,9 @@ void Icmp6Header::set_payload(const std::vector<char> &payload_buf, size_t buf_l
  */
 
 Icmp4Header::Icmp4Header() {
-    _packet = std::vector<char>(DEF_ICMP_PACKET_LEN, 0);
-    _length = sizeof(struct icmp4_hdr);
-    _family = AddressFamily::Inet;
+    packet_ = std::vector<char>(DEF_ICMP_PACKET_LEN, 0);
+    length_ = sizeof(struct icmp4_hdr);
+    family_ = AddressFamily::Inet;
 }
 
 Icmp4Header::Icmp4Header(char *buf, size_t buf_length) :
@@ -139,9 +139,9 @@ Icmp4Header::Icmp4Header(u_int16_t id, u_int16_t seq, std::vector<char> &payload
 }
 
 IcmpRespStatus Icmp4Header::get_resp_status() {
-    switch (Icmp4Type(_hdr_ptr()->type)) {
+    switch (Icmp4Type(hdr_ptr_()->type)) {
         case Icmp4Type::DstUnreach:
-            switch (Icmp4Code(_hdr_ptr()->code)) {
+            switch (Icmp4Code(hdr_ptr_()->code)) {
                 case Icmp4Code::Net: return IcmpRespStatus::NetworkUnreachable;
                 case Icmp4Code::Host: return IcmpRespStatus::HostUnreachable;
                 case Icmp4Code::Protocol: return IcmpRespStatus::ProtocolUnreachable;
@@ -161,38 +161,38 @@ IcmpRespStatus Icmp4Header::get_resp_status() {
 }
 
 u_int16_t Icmp4Header::get_id() {
-    return ntohs(_hdr_ptr()->un.echo.id);
+    return ntohs(hdr_ptr_()->un.echo.id);
 }
 
 u_int16_t Icmp4Header::get_seq() {
-    return ntohs(_hdr_ptr()->un.echo.sequence);
+    return ntohs(hdr_ptr_()->un.echo.sequence);
 }
 
 void Icmp4Header::set_type(Icmp4Type type) {
-    _hdr_ptr()->type = static_cast<u_int8_t>(type);
+    hdr_ptr_()->type = static_cast<u_int8_t>(type);
 }
 
 void Icmp4Header::set_code(Icmp4Code code) {
-    _hdr_ptr()->code = static_cast<u_int8_t>(code);
+    hdr_ptr_()->code = static_cast<u_int8_t>(code);
 }
 
 void Icmp4Header::set_id(u_int16_t id) {
-    _hdr_ptr()->un.echo.id = htons(id);
+    hdr_ptr_()->un.echo.id = htons(id);
 }
 
 void Icmp4Header::set_seq(u_int16_t seq) {
-    _hdr_ptr()->un.echo.sequence = htons(seq);
+    hdr_ptr_()->un.echo.sequence = htons(seq);
 }
 
 void Icmp4Header::set_payload(const std::vector<char> &payload_buf, size_t buf_length) {
-    IcmpHeader::_set_payload(payload_buf, buf_length, sizeof(struct icmp4_hdr));
+    IcmpHeader::set_payload_(payload_buf, buf_length, sizeof(struct icmp4_hdr));
 }
 
 void Icmp4Header::prep_to_send() {
     /* Checksum field must be set to zero before checksum computation */
-    _hdr_ptr()->checksum = 0;
+    hdr_ptr_()->checksum = 0;
 
     /* compute_checksum returns checksum in a network byte-order */
-    _hdr_ptr()->checksum =
-        compute_checksum((u_int16_t *) IcmpHeader::get_packet_ptr(), _length);
+    hdr_ptr_()->checksum =
+        compute_checksum((u_int16_t *) IcmpHeader::get_packet_ptr(), length_);
 }
